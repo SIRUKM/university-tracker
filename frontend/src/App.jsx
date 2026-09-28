@@ -5,7 +5,7 @@ import SearchBar from './components/tracker/SearchBar';
 import ApplicationCard from './components/tracker/ApplicationCard';
 import { FolderPlus, ArrowUpDown, Download } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8080/api/applications';
+const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
 
 export default function App() {
   const [applications, setApplications] = useState([]);
