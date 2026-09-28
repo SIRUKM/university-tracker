@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/applications")
-@CrossOrigin(origins = "http://localhost:5173") // Connects cleanly with your React Vite frontend
+@CrossOrigin(origins = "*") // Allows your future live frontend to fetch data
 public class ApplicationController {
 
     @Autowired
