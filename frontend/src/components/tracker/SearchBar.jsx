@@ -10,7 +10,7 @@ export default function SearchBar({ onAddUniversity }) {
 
   // Fetch German universities on component mount
   useEffect(() => {
-    axios.get('http://universities.hipolabs.com/search?country=Germany')
+    axios.get('https://universities.hipolabs.com/search?country=Germany')
       .then(res => {
         setUniversities(res.data);
         setLoading(false);
