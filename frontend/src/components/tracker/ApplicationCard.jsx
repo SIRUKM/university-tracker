@@ -321,7 +321,7 @@ export default function ApplicationCard({
           className="flex items-center space-x-2 bg-black hover:bg-gray-800 text-white text-sm font-semibold px-6 py-2 rounded-xl transition-all shadow-sm"
         >
           <PlusCircle className="h-4 w-4" />
-          <span>{isDraft ? "Add Application to Tracker" : "Add"}</span>
+          <span>{isDraft ? "Add Application to Tracker" : "Update"}</span>
         </button>
       </div>
     </div>
