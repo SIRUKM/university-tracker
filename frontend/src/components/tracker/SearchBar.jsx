@@ -10,7 +10,8 @@ export default function SearchBar({ onAddUniversity }) {
 
   // Fetch German universities on component mount
   useEffect(() => {
-    axios.get('https://universities.hipolabs.com/search?country=Germany')
+    // This routes the insecure HTTP request through a secure HTTPS proxy
+    axios.get('https://api.allorigins.win/raw?url=http%3A%2F%2Funiversities.hipolabs.com%2Fsearch%3Fcountry%3DGermany')
       .then(res => {
         setUniversities(res.data);
         setLoading(false);
