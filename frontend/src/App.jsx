@@ -1,29 +1,23 @@
 import { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
 import MainLayout from './components/layout/MainLayout';
 import SearchBar from './components/tracker/SearchBar';
 import ApplicationCard from './components/tracker/ApplicationCard';
 import { FolderPlus, ArrowUpDown, Download } from 'lucide-react';
 
-export default function App() {
-  const [applications, setApplications] = useState(() => {
-    try {
-      const saved = localStorage.getItem('university-tracker');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+const API_BASE_URL = 'http://localhost:8080/api/applications';
 
+export default function App() {
+  const [applications, setApplications] = useState([]);
   const [draftApp, setDraftApp] = useState(null);
   const [sortBy, setSortBy] = useState('priority');
 
+  // Load data from PostgreSQL on initial render
   useEffect(() => {
-    try {
-      localStorage.setItem('university-tracker', JSON.stringify(applications));
-    } catch (err) {
-      console.error("Failed to save to localStorage:", err);
-    }
-  }, [applications]);
+    axios.get(API_BASE_URL)
+      .then(response => setApplications(response.data))
+      .catch(err => console.error("Error fetching data:", err));
+  }, []);
 
   const handleSelectUniversity = (uniName) => {
     setDraftApp({
@@ -45,23 +39,38 @@ export default function App() {
     });
   };
 
+  // Create new record in Database
   const saveDraft = (savedData) => {
-    setApplications((prev) => [savedData, ...prev]);
-    setDraftApp(null);
+    axios.post(API_BASE_URL, savedData)
+      .then(response => {
+        setApplications((prev) => [response.data, ...prev]);
+        setDraftApp(null);
+      })
+      .catch(err => console.error("Error saving to DB:", err));
   };
 
   const cancelDraft = () => {
     setDraftApp(null);
   };
 
+  // Update existing record in Database
   const updateExistingApplication = (updatedData) => {
-    setApplications((prev) =>
-      prev.map((app) => (app.id === updatedData.id ? updatedData : app))
-    );
+    axios.put(`${API_BASE_URL}/${updatedData.id}`, updatedData)
+      .then(response => {
+        setApplications((prev) =>
+          prev.map((app) => (app.id === updatedData.id ? response.data : app))
+        );
+      })
+      .catch(err => console.error("Error updating DB:", err));
   };
 
+  // Delete record from Database
   const removeApplication = (id) => {
-    setApplications((prev) => prev.filter((app) => app.id !== id));
+    axios.delete(`${API_BASE_URL}/${id}`)
+      .then(() => {
+        setApplications((prev) => prev.filter((app) => app.id !== id));
+      })
+      .catch(err => console.error("Error deleting from DB:", err));
   };
 
   const exportToCSV = () => {
