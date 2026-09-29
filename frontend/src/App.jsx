@@ -1,23 +1,48 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+import { useAuth } from '@clerk/clerk-react';
 import MainLayout from './components/layout/MainLayout';
 import SearchBar from './components/tracker/SearchBar';
 import ApplicationCard from './components/tracker/ApplicationCard';
 import { FolderPlus, ArrowUpDown, Download } from 'lucide-react';
 
 const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
+const GUEST_STORAGE_KEY = 'unitracker_guest_data';
 
 export default function App() {
+  // Extract getToken alongside isSignedIn
+  const { isSignedIn, getToken } = useAuth();
+  
   const [applications, setApplications] = useState([]);
   const [draftApp, setDraftApp] = useState(null);
   const [sortBy, setSortBy] = useState('priority');
 
-  // Load data from PostgreSQL on initial render
+  // Load data based on authentication status
   useEffect(() => {
-    axios.get(API_BASE_URL)
-      .then(response => setApplications(response.data))
-      .catch(err => console.error("Error fetching data:", err));
-  }, []);
+    if (!isSignedIn) {
+      // Guest Mode: Load from local storage
+      const localData = localStorage.getItem(GUEST_STORAGE_KEY);
+      if (localData) {
+        setApplications(JSON.parse(localData));
+      } else {
+        setApplications([]);
+      }
+    } else {
+      // Authenticated Mode: Fetch from backend with Token
+      const fetchData = async () => {
+        try {
+          const token = await getToken();
+          const response = await axios.get(API_BASE_URL, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setApplications(response.data);
+        } catch (err) {
+          console.error("Error fetching data:", err);
+        }
+      };
+      fetchData();
+    }
+  }, [isSignedIn, getToken]);
 
   const handleSelectUniversity = (uniName) => {
     setDraftApp({
@@ -39,38 +64,66 @@ export default function App() {
     });
   };
 
-  // Create new record in Database
-  const saveDraft = (savedData) => {
-    axios.post(API_BASE_URL, savedData)
-      .then(response => {
+  const saveDraft = async (savedData) => {
+    if (!isSignedIn) {
+      const newApps = [savedData, ...applications];
+      setApplications(newApps);
+      localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(newApps));
+      setDraftApp(null);
+    } else {
+      try {
+        const token = await getToken();
+        const response = await axios.post(API_BASE_URL, savedData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setApplications((prev) => [response.data, ...prev]);
         setDraftApp(null);
-      })
-      .catch(err => console.error("Error saving to DB:", err));
+      } catch (err) {
+        console.error("Error saving to DB:", err);
+      }
+    }
   };
 
   const cancelDraft = () => {
     setDraftApp(null);
   };
 
-  // Update existing record in Database
-  const updateExistingApplication = (updatedData) => {
-    axios.put(`${API_BASE_URL}/${updatedData.id}`, updatedData)
-      .then(response => {
+  const updateExistingApplication = async (updatedData) => {
+    if (!isSignedIn) {
+      const updatedApps = applications.map((app) => (app.id === updatedData.id ? updatedData : app));
+      setApplications(updatedApps);
+      localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updatedApps));
+    } else {
+      try {
+        const token = await getToken();
+        const response = await axios.put(`${API_BASE_URL}/${updatedData.id}`, updatedData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setApplications((prev) =>
           prev.map((app) => (app.id === updatedData.id ? response.data : app))
         );
-      })
-      .catch(err => console.error("Error updating DB:", err));
+      } catch (err) {
+        console.error("Error updating DB:", err);
+      }
+    }
   };
 
-  // Delete record from Database
-  const removeApplication = (id) => {
-    axios.delete(`${API_BASE_URL}/${id}`)
-      .then(() => {
+  const removeApplication = async (id) => {
+    if (!isSignedIn) {
+      const filteredApps = applications.filter((app) => app.id !== id);
+      setApplications(filteredApps);
+      localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(filteredApps));
+    } else {
+      try {
+        const token = await getToken();
+        await axios.delete(`${API_BASE_URL}/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setApplications((prev) => prev.filter((app) => app.id !== id));
-      })
-      .catch(err => console.error("Error deleting from DB:", err));
+      } catch (err) {
+        console.error("Error deleting from DB:", err);
+      }
+    }
   };
 
   const exportToCSV = () => {

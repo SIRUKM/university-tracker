@@ -14,6 +14,9 @@ public class Application {
     @Id
     private String id;
 
+    @Column(name = "user_id", nullable = false)
+    private String userId;
+
     @Column(nullable = false)
     private String universityName;
 
