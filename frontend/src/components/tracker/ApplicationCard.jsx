@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Trash2,
   BookOpen,
@@ -46,6 +46,13 @@ export default function ApplicationCard({
   const [formData, setFormData] = useState(app);
   const [isExpanded, setIsExpanded] = useState(true);
   const [courseError, setCourseError] = useState(false);
+
+  // Sync state whenever a new university draft is selected or app data updates
+  useEffect(() => {
+    setFormData(app);
+    setCourseError(false);
+  }, [app]);
+
   const currentPriority = priorityConfig[formData.priority] || priorityConfig["1"];
 
   const handleChange = (field, value) => {
@@ -294,7 +301,6 @@ export default function ApplicationCard({
             </div>
           )}
 
-          {/* New Field: GRE Requirement */}
           <div className="space-y-1">
             <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
               <GraduationCap className="h-3.5 w-3.5 mr-1" /> GRE Requirement

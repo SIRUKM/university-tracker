@@ -9,6 +9,14 @@ import { FolderPlus, ArrowUpDown, Download } from 'lucide-react';
 const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
 const GUEST_STORAGE_KEY = 'unitracker_guest_data';
 
+// Normalize empty date strings to null for Spring Boot LocalDate serialization
+const normalizePayload = (data) => ({
+  ...data,
+  openingDate: data.openingDate || null,
+  dateApplied: data.dateApplied || null,
+  deadline: data.deadline || null,
+});
+
 export default function App() {
   const { isSignedIn, getToken } = useAuth();
   
@@ -62,21 +70,24 @@ export default function App() {
   };
 
   const saveDraft = async (savedData) => {
+    const payload = normalizePayload(savedData);
+
     if (!isSignedIn) {
-      const newApps = [savedData, ...applications];
+      const newApps = [payload, ...applications];
       setApplications(newApps);
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(newApps));
       setDraftApp(null);
     } else {
       try {
         const token = await getToken();
-        const response = await axios.post(API_BASE_URL, savedData, {
+        const response = await axios.post(API_BASE_URL, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setApplications((prev) => [response.data, ...prev]);
         setDraftApp(null);
       } catch (err) {
         console.error("Error saving to DB:", err);
+        alert("Could not save application. Please ensure the backend server is awake and try again.");
       }
     }
   };
@@ -86,21 +97,24 @@ export default function App() {
   };
 
   const updateExistingApplication = async (updatedData) => {
+    const payload = normalizePayload(updatedData);
+
     if (!isSignedIn) {
-      const updatedApps = applications.map((app) => (app.id === updatedData.id ? updatedData : app));
+      const updatedApps = applications.map((app) => (app.id === payload.id ? payload : app));
       setApplications(updatedApps);
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updatedApps));
     } else {
       try {
         const token = await getToken();
-        const response = await axios.put(`${API_BASE_URL}/${updatedData.id}`, updatedData, {
+        const response = await axios.put(`${API_BASE_URL}/${payload.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setApplications((prev) =>
-          prev.map((app) => (app.id === updatedData.id ? response.data : app))
+          prev.map((app) => (app.id === payload.id ? response.data : app))
         );
       } catch (err) {
         console.error("Error updating DB:", err);
+        alert("Could not update application. Please try again.");
       }
     }
   };
@@ -216,6 +230,7 @@ export default function App() {
               <span className="text-xs text-gray-500">Review and click Add to save to your tracker</span>
             </div>
             <ApplicationCard
+              key={draftApp.id}
               app={draftApp}
               isDraft={true}
               onSave={saveDraft}
