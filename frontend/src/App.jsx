@@ -5,11 +5,13 @@ import MainLayout from './components/layout/MainLayout';
 import SearchBar from './components/tracker/SearchBar';
 import ApplicationCard from './components/tracker/ApplicationCard';
 import { FolderPlus, ArrowUpDown, Download } from 'lucide-react';
+// 1. Add this import at the top of App.jsx alongside SearchBar & ApplicationCard:
+import AnalyticsDashboard from './components/tracker/AnalyticsDashboard';
+
 
 const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
 const GUEST_STORAGE_KEY = 'unitracker_guest_data';
 
-// Normalize empty date strings to null for Spring Boot LocalDate serialization
 const normalizePayload = (data) => ({
   ...data,
   openingDate: data.openingDate || null,
@@ -23,7 +25,14 @@ export default function App() {
   const [applications, setApplications] = useState([]);
   const [draftApp, setDraftApp] = useState(null);
   const [sortBy, setSortBy] = useState('priority');
+  const [statusFilter, setStatusFilter] = useState('All');
 
+  // Background wake-up ping for Render free-tier container on initial page load
+  useEffect(() => {
+    axios.get(API_BASE_URL).catch(() => {});
+  }, []);
+
+  // Load data & auto-migrate guest applications upon login
   useEffect(() => {
     if (!isSignedIn) {
       const localData = localStorage.getItem(GUEST_STORAGE_KEY);
@@ -33,18 +42,32 @@ export default function App() {
         setApplications([]);
       }
     } else {
-      const fetchData = async () => {
+      const syncAndFetchData = async () => {
         try {
           const token = await getToken();
-          const response = await axios.get(API_BASE_URL, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          const headers = { Authorization: `Bearer ${token}` };
+
+          // Check if user created applications in Guest Mode before signing in
+          const guestRaw = localStorage.getItem(GUEST_STORAGE_KEY);
+          if (guestRaw) {
+            const guestApps = JSON.parse(guestRaw);
+            if (Array.isArray(guestApps) && guestApps.length > 0) {
+              await Promise.all(
+                guestApps.map((gApp) =>
+                  axios.post(API_BASE_URL, normalizePayload(gApp), { headers }).catch(() => {})
+                )
+              );
+            }
+            localStorage.removeItem(GUEST_STORAGE_KEY);
+          }
+
+          const response = await axios.get(API_BASE_URL, { headers });
           setApplications(response.data);
         } catch (err) {
           console.error("Error fetching data:", err);
         }
       };
-      fetchData();
+      syncAndFetchData();
     }
   }, [isSignedIn, getToken]);
 
@@ -88,6 +111,7 @@ export default function App() {
       } catch (err) {
         console.error("Error saving to DB:", err);
         alert("Could not save application. Please ensure the backend server is awake and try again.");
+        throw err;
       }
     }
   };
@@ -115,6 +139,7 @@ export default function App() {
       } catch (err) {
         console.error("Error updating DB:", err);
         alert("Could not update application. Please try again.");
+        throw err;
       }
     }
   };
@@ -176,10 +201,22 @@ export default function App() {
     document.body.removeChild(link);
   };
 
-  const sortedApplications = useMemo(() => {
-    return [...applications].sort((a, b) => {
+  const filteredAndSortedApplications = useMemo(() => {
+    const filtered = applications.filter((app) => {
+      if (statusFilter === 'All') return true;
+      if (statusFilter === 'VPD Pending') {
+        return app.vpdRequired === 'Yes' && app.vpdStatus !== 'Received';
+      }
+      return (app.status || 'Drafting') === statusFilter;
+    });
+
+    return [...filtered].sort((a, b) => {
       if (sortBy === 'priority') {
         return (a.priority || '1').localeCompare(b.priority || '1');
+      } else if (sortBy === 'deadline') {
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return new Date(a.deadline) - new Date(b.deadline);
       } else if (sortBy === 'openingDate') {
         if (!a.openingDate) return 1;
         if (!b.openingDate) return -1;
@@ -187,7 +224,9 @@ export default function App() {
       }
       return 0;
     });
-  }, [applications, sortBy]);
+  }, [applications, sortBy, statusFilter]);
+
+  const filterTabs = ['All', 'Drafting', 'Submitted', 'VPD Pending', 'Admitted', 'Rejected'];
 
   return (
     <MainLayout>
@@ -219,8 +258,50 @@ export default function App() {
           </div>
         </div>
 
+        
+        {/* Analytics Summary Dashboard */}
+        <AnalyticsDashboard applications={applications} />
+
         {/* Search Bar */}
         <SearchBar onAddUniversity={handleSelectUniversity} />
+
+        {/* Filter Pills & Sorting Toolbar */}
+        {applications.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-gray-200 px-4 py-3 rounded-xl shadow-sm">
+            {/* Status Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {filterTabs.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setStatusFilter(tab)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    statusFilter === tab
+                      ? 'bg-black text-white'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center space-x-2 shrink-0">
+              <ArrowUpDown className="h-4 w-4 text-gray-500" />
+              <span className="text-xs font-semibold text-gray-600">Sort:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-black"
+              >
+                <option value="priority">Priority Level (High first)</option>
+                <option value="deadline">Deadline (Soonest first)</option>
+                <option value="openingDate">Opening Date (Soonest first)</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {/* Active Draft Form */}
         {draftApp && (
@@ -239,38 +320,26 @@ export default function App() {
           </div>
         )}
 
-        {/* Sorting Toolbar */}
-        {applications.length > 0 && (
-          <div className="flex items-center justify-between bg-white border border-gray-200 px-4 py-3 rounded-xl shadow-sm">
-            <div className="flex items-center space-x-2 text-sm font-semibold text-gray-700">
-              <ArrowUpDown className="h-4 w-4 text-gray-500" />
-              <span>Sort Applications By:</span>
-            </div>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black"
-            >
-              <option value="priority">Priority Level (High first)</option>
-              <option value="openingDate">Opening Date (Soonest first)</option>
-            </select>
-          </div>
-        )}
-
         {/* Applications List */}
         <div className="space-y-4">
-          {sortedApplications.length === 0 && !draftApp ? (
+          {filteredAndSortedApplications.length === 0 && !draftApp ? (
             <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-2xl p-8 space-y-3">
               <div className="w-12 h-12 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mx-auto">
                 <FolderPlus className="h-6 w-6" />
               </div>
-              <h3 className="font-semibold text-gray-800 text-base">No applications tracked yet</h3>
+              <h3 className="font-semibold text-gray-800 text-base">
+                {applications.length === 0
+                  ? 'No applications tracked yet'
+                  : `No applications matching "${statusFilter}"`}
+              </h3>
               <p className="text-gray-500 text-sm max-w-md mx-auto">
-                Use the search bar above to look up any university in Germany and start adding your applications.
+                {applications.length === 0
+                  ? 'Use the search bar above to look up any university in Germany and start adding your applications.'
+                  : 'Switch the filter tab above to view your other tracked universities.'}
               </p>
             </div>
           ) : (
-            sortedApplications.map((app) => (
+            filteredAndSortedApplications.map((app) => (
               <ApplicationCard
                 key={app.id}
                 app={app}
