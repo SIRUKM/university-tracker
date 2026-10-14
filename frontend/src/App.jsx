@@ -1,19 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import MainLayout from './components/layout/MainLayout';
 import SearchBar from './components/tracker/SearchBar';
 import ApplicationCard from './components/tracker/ApplicationCard';
-import { FolderPlus, ArrowUpDown, Download } from 'lucide-react';
-// 1. Add this import at the top of App.jsx alongside SearchBar & ApplicationCard:
 import AnalyticsDashboard from './components/tracker/AnalyticsDashboard';
-
+import { FolderPlus, ArrowUpDown, Download, Upload } from 'lucide-react';
 
 const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
 const GUEST_STORAGE_KEY = 'unitracker_guest_data';
 
-const normalizePayload = (data) => ({
+const normalizePayload = (data, email) => ({
   ...data,
+  userEmail: email || data.userEmail || null,
   openingDate: data.openingDate || null,
   dateApplied: data.dateApplied || null,
   deadline: data.deadline || null,
@@ -21,6 +20,8 @@ const normalizePayload = (data) => ({
 
 export default function App() {
   const { isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
+  const userEmail = user?.primaryEmailAddress?.emailAddress || null;
   
   const [applications, setApplications] = useState([]);
   const [draftApp, setDraftApp] = useState(null);
@@ -54,7 +55,7 @@ export default function App() {
             if (Array.isArray(guestApps) && guestApps.length > 0) {
               await Promise.all(
                 guestApps.map((gApp) =>
-                  axios.post(API_BASE_URL, normalizePayload(gApp), { headers }).catch(() => {})
+                  axios.post(API_BASE_URL, normalizePayload(gApp, userEmail), { headers }).catch(() => {})
                 )
               );
             }
@@ -69,7 +70,7 @@ export default function App() {
       };
       syncAndFetchData();
     }
-  }, [isSignedIn, getToken]);
+  }, [isSignedIn, getToken, userEmail]);
 
   const handleSelectUniversity = (uniName) => {
     setDraftApp({
@@ -89,11 +90,14 @@ export default function App() {
       feeStatus: 'Pending',
       courseLink: '',
       remarks: '',
+      userEmail: userEmail,
+      reminderType: 'NONE',
+      reminderSent: false,
     });
   };
 
   const saveDraft = async (savedData) => {
-    const payload = normalizePayload(savedData);
+    const payload = normalizePayload(savedData, userEmail);
 
     if (!isSignedIn) {
       const newApps = [payload, ...applications];
@@ -121,7 +125,7 @@ export default function App() {
   };
 
   const updateExistingApplication = async (updatedData) => {
-    const payload = normalizePayload(updatedData);
+    const payload = normalizePayload(updatedData, userEmail);
 
     if (!isSignedIn) {
       const updatedApps = applications.map((app) => (app.id === payload.id ? payload : app));
@@ -201,6 +205,234 @@ export default function App() {
     document.body.removeChild(link);
   };
 
+
+   // Universal CSV Import Handler with Duplicate Checking & Upsert (Update if exists)
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        const lines = text.split("\n").map(l => l.trim()).filter((line) => line !== "");
+        if (lines.length < 2) {
+          alert("The CSV file appears to be empty.");
+          return;
+        }
+
+        const parseRow = (rowStr) => {
+          const res = [];
+          let current = "";
+          let inQuotes = false;
+          for (let i = 0; i < rowStr.length; i++) {
+            const char = rowStr[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === "," && !inQuotes) {
+              res.push(current.trim().replace(/^"|"$/g, ""));
+              current = "";
+            } else {
+              current += char;
+            }
+          }
+          res.push(current.trim().replace(/^"|"$/g, ""));
+          return res;
+        };
+
+        const parseDateToISO = (dateStr) => {
+          if (!dateStr || !dateStr.trim()) return null;
+          const clean = dateStr.trim();
+          if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+
+          const slashMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+          if (slashMatch) {
+            const [, p1, p2, yyyy] = slashMatch;
+            const day = parseInt(p1, 10) > 12 ? p1 : p1;
+            const month = parseInt(p1, 10) > 12 ? p2 : p2;
+            return `${yyyy}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          }
+
+          try {
+            const parsed = new Date(clean);
+            if (!isNaN(parsed.getTime())) {
+              const yyyy = parsed.getFullYear();
+              const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+              const dd = String(parsed.getDate()).padStart(2, "0");
+              if (yyyy > 2000 && yyyy < 2100) return `${yyyy}-${mm}-${dd}`;
+            }
+          } catch {
+            // fallback
+          }
+          return null;
+        };
+
+        let headerIndex = -1;
+        let headers = [];
+        for (let i = 0; i < lines.length; i++) {
+          const row = parseRow(lines[i]);
+          if (row.some(cell => cell.toLowerCase().includes("university name"))) {
+            headerIndex = i;
+            headers = row.map(h => h.toLowerCase());
+            break;
+          }
+        }
+
+        if (headerIndex === -1) {
+          alert("Could not find 'University Name' header in the CSV file.");
+          return;
+        }
+
+        const findColIndex = (keywords) => {
+          return headers.findIndex(h => keywords.some(k => h.includes(k)));
+        };
+
+        const idxUni = findColIndex(["university name", "university"]);
+        const idxCourse = findColIndex(["course"]);
+        const idxPriority = findColIndex(["priority"]);
+        const idxAppliedYesNo = findColIndex(["applied"]);
+        const idxOpening = findColIndex(["opening"]);
+        const idxDeadline = findColIndex(["deadline"]);
+        const idxAppliedDate = findColIndex(["date of application", "date applied"]);
+        const idxPortal = findColIndex(["portal", "uni-assist"]);
+        const idxFeeStatus = findColIndex(["fee paid", "fee status"]);
+        const idxFeeAmount = findColIndex(["amount paid", "fee"]);
+        const idxVpd = findColIndex(["vpd"]);
+        const idxGre = findColIndex(["gre"]);
+        const idxLink = findColIndex(["link"]);
+        const idxRemark = findColIndex(["remark"]);
+
+        if (idxUni === -1) {
+          alert("Could not locate the University Name column.");
+          return;
+        }
+
+        let updatedAppsList = [...applications];
+        let addedCount = 0;
+        let updatedCount = 0;
+
+        for (let i = headerIndex + 1; i < lines.length; i++) {
+          const data = parseRow(lines[i]);
+          if (data.length <= idxUni) continue;
+
+          const uniName = data[idxUni];
+          if (!uniName || uniName.toLowerCase().includes("university name")) continue;
+
+          const courseName = idxCourse !== -1 && data[idxCourse] ? data[idxCourse] : "M.Sc. Program";
+          const appliedVal = idxAppliedYesNo !== -1 && data[idxAppliedYesNo] ? data[idxAppliedYesNo].toLowerCase() : "";
+          const appliedDateParsed = idxAppliedDate !== -1 ? parseDateToISO(data[idxAppliedDate]) : null;
+
+          let derivedStatus = "Drafting";
+          if (appliedVal.includes("yes") || appliedDateParsed) {
+            derivedStatus = "Submitted";
+          }
+
+          const csvOpeningDate = idxOpening !== -1 ? parseDateToISO(data[idxOpening]) : null;
+          const csvDeadline = idxDeadline !== -1 ? parseDateToISO(data[idxDeadline]) : null;
+          const csvPriority = idxPriority !== -1 && data[idxPriority] ? String(data[idxPriority]).replace(/[^0-9]/g, "") || "1" : "1";
+          const csvFeeStatus = idxFeeStatus !== -1 && data[idxFeeStatus] ? data[idxFeeStatus] : "Pending";
+          const csvFeeAmount = idxFeeAmount !== -1 && data[idxFeeAmount] ? data[idxFeeAmount] : "";
+          const csvPortal = idxPortal !== -1 && data[idxPortal] && data[idxPortal].toLowerCase().includes("uni-assist") ? "Uni-Assist" : "Direct Portal";
+          const csvVpd = idxVpd !== -1 && data[idxVpd] && data[idxVpd].toLowerCase().includes("yes") ? "Yes" : "No";
+          const csvGre = idxGre !== -1 && data[idxGre] ? data[idxGre] : "No";
+          const csvLink = idxLink !== -1 && data[idxLink] ? data[idxLink] : "";
+          const csvRemark = idxRemark !== -1 && data[idxRemark] ? data[idxRemark] : "";
+
+          // Check if university + course already exists in state
+          const existingIndex = updatedAppsList.findIndex(
+            (app) =>
+              app.universityName.trim().toLowerCase() === uniName.trim().toLowerCase() &&
+              (app.course || "").trim().toLowerCase() === courseName.trim().toLowerCase()
+          );
+
+          if (existingIndex !== -1) {
+            // Update existing record
+            updatedAppsList[existingIndex] = {
+              ...updatedAppsList[existingIndex],
+              status: derivedStatus,
+              priority: csvPriority,
+              openingDate: csvOpeningDate,
+              deadline: csvDeadline,
+              dateApplied: appliedDateParsed,
+              feeStatus: csvFeeStatus,
+              applicationFee: csvFeeAmount,
+              portal: csvPortal,
+              vpdRequired: csvVpd,
+              greRequired: csvGre,
+              courseLink: csvLink,
+              remarks: csvRemark,
+            };
+            updatedCount++;
+
+            // If logged in, update on backend database via PUT
+            if (isSignedIn) {
+              const token = await getToken();
+              await axios.put(
+                `${API_BASE_URL}/${updatedAppsList[existingIndex].id}`,
+                normalizePayload(updatedAppsList[existingIndex], userEmail),
+                { headers: { Authorization: `Bearer ${token}` } }
+              ).catch(() => {});
+            }
+          } else {
+            // Create new record
+            const newObj = {
+              id: crypto.randomUUID(),
+              universityName: uniName,
+              course: courseName,
+              status: derivedStatus,
+              priority: csvPriority,
+              openingDate: csvOpeningDate,
+              deadline: csvDeadline,
+              dateApplied: appliedDateParsed,
+              feeStatus: csvFeeStatus,
+              applicationFee: csvFeeAmount,
+              portal: csvPortal,
+              vpdRequired: csvVpd,
+              vpdStatus: "Pending",
+              greRequired: csvGre,
+              courseLink: csvLink,
+              remarks: csvRemark,
+              userEmail: userEmail,
+              reminderType: "NONE",
+              reminderSent: false,
+            };
+            updatedAppsList.push(newObj);
+            addedCount++;
+
+            // If logged in, save to backend via POST
+            if (isSignedIn) {
+              const token = await getToken();
+              const response = await axios.post(
+                API_BASE_URL,
+                normalizePayload(newObj, userEmail),
+                { headers: { Authorization: `Bearer ${token}` } }
+              ).catch(() => null);
+              if (response && response.data) {
+                // replace local temporary ID with database ID
+                newObj.id = response.data.id;
+              }
+            }
+          }
+        }
+
+        if (!isSignedIn) {
+          localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updatedAppsList));
+        }
+
+        setApplications([...updatedAppsList]);
+        alert(`CSV Import Complete: ${addedCount} added, ${updatedCount} updated.`);
+      } catch (err) {
+        console.error("Error parsing CSV:", err);
+        alert("Failed to import CSV file.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = null;
+  };
+
+
+
+
   const filteredAndSortedApplications = useMemo(() => {
     const filtered = applications.filter((app) => {
       if (statusFilter === 'All') return true;
@@ -246,6 +478,24 @@ export default function App() {
               <span>{applications.length} Tracked</span>
             </div>
 
+            {/* Hidden CSV Input */}
+            <input
+              type="file"
+              id="csvFileInput"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+
+            <button
+              onClick={() => document.getElementById('csvFileInput').click()}
+              className="flex items-center space-x-2 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm"
+              title="Import existing applications from an Excel or CSV file"
+            >
+              <Upload className="h-4 w-4" />
+              <span>Import CSV</span>
+            </button>
+
             {applications.length > 0 && (
               <button
                 onClick={exportToCSV}
@@ -258,7 +508,6 @@ export default function App() {
           </div>
         </div>
 
-        
         {/* Analytics Summary Dashboard */}
         <AnalyticsDashboard applications={applications} />
 
