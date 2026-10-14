@@ -8,17 +8,18 @@ export default function SearchBar({ onAddUniversity }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch German universities on component mount
+  // Fetch German universities directly from HipoLabs' official HTTPS GitHub CDN
   useEffect(() => {
-    // This routes the insecure HTTP request through a secure HTTPS proxy
-    axios.get('https://api.allorigins.win/raw?url=http%3A%2F%2Funiversities.hipolabs.com%2Fsearch%3Fcountry%3DGermany')
-      .then(res => {
-        setUniversities(res.data);
+    axios
+      .get('https://raw.githubusercontent.com/Hipo/university-domains-list/master/world_universities_and_domains.json')
+      .then((res) => {
+        const germanUnis = res.data.filter((uni) => uni.country === 'Germany');
+        setUniversities(germanUnis);
         setLoading(false);
       })
-      .catch(err => {
-        console.error("Error fetching universities:", err);
-        setError("Failed to load university list. You can still type and add manually.");
+      .catch((err) => {
+        console.error('Error fetching universities:', err);
+        setError('Failed to load university list. You can still type and add manually.');
         setLoading(false);
       });
   }, []);
@@ -27,17 +28,16 @@ export default function SearchBar({ onAddUniversity }) {
   const autocompleteResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     return universities
-      .filter(uni => uni.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      .slice(0, 5); // Limit to top 5 results for a clean UI
+      .filter((uni) => uni.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .slice(0, 5);
   }, [searchQuery, universities]);
 
   const handleSelect = (uniName) => {
     onAddUniversity(uniName);
-    setSearchQuery(''); // Clear search after adding
+    setSearchQuery('');
   };
 
   const handleKeyDown = (e) => {
-    // Allows pressing 'Enter' to add whatever custom name is typed if API doesn't list it
     if (e.key === 'Enter' && searchQuery.trim()) {
       handleSelect(searchQuery.trim());
     }
@@ -50,7 +50,11 @@ export default function SearchBar({ onAddUniversity }) {
         <input
           type="text"
           disabled={loading && universities.length === 0}
-          placeholder={loading ? "Loading German universities..." : "Search university or type custom name & press Enter..."}
+          placeholder={
+            loading
+              ? 'Loading German universities...'
+              : 'Search university or type custom name & press Enter...'
+          }
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -61,14 +65,11 @@ export default function SearchBar({ onAddUniversity }) {
         )}
       </div>
 
-      {error && (
-        <p className="text-xs text-amber-600 mt-2">{error}</p>
-      )}
+      {error && <p className="text-xs text-amber-600 mt-2">{error}</p>}
 
       {/* Autocomplete Dropdown with Custom Add Option */}
       {searchQuery.trim().length > 0 && (
         <div className="absolute z-20 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          {/* Option to add whatever the user explicitly typed as a custom entry */}
           <button
             type="button"
             onClick={() => handleSelect(searchQuery.trim())}
@@ -83,7 +84,6 @@ export default function SearchBar({ onAddUniversity }) {
             </div>
           </button>
 
-          {/* API Results */}
           {autocompleteResults.map((uni, idx) => (
             <button
               key={idx}
@@ -91,7 +91,9 @@ export default function SearchBar({ onAddUniversity }) {
               onClick={() => handleSelect(uni.name)}
               className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-center justify-between group transition-colors"
             >
-              <span className="font-medium text-gray-800 group-hover:text-black text-sm">{uni.name}</span>
+              <span className="font-medium text-gray-800 group-hover:text-black text-sm">
+                {uni.name}
+              </span>
               <div className="flex items-center space-x-1 text-xs text-gray-400 group-hover:text-black font-medium">
                 <span>Add</span>
                 <Plus className="h-4 w-4" />

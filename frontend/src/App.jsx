@@ -10,17 +10,14 @@ const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
 const GUEST_STORAGE_KEY = 'unitracker_guest_data';
 
 export default function App() {
-  // Extract getToken alongside isSignedIn
   const { isSignedIn, getToken } = useAuth();
   
   const [applications, setApplications] = useState([]);
   const [draftApp, setDraftApp] = useState(null);
   const [sortBy, setSortBy] = useState('priority');
 
-  // Load data based on authentication status
   useEffect(() => {
     if (!isSignedIn) {
-      // Guest Mode: Load from local storage
       const localData = localStorage.getItem(GUEST_STORAGE_KEY);
       if (localData) {
         setApplications(JSON.parse(localData));
@@ -28,7 +25,6 @@ export default function App() {
         setApplications([]);
       }
     } else {
-      // Authenticated Mode: Fetch from backend with Token
       const fetchData = async () => {
         try {
           const token = await getToken();
@@ -57,6 +53,7 @@ export default function App() {
       portal: 'Direct Portal',
       vpdRequired: 'No',
       vpdStatus: 'Pending',
+      greRequired: 'No',
       applicationFee: '',
       feeStatus: 'Pending',
       courseLink: '',
@@ -132,7 +129,7 @@ export default function App() {
     const headers = [
       'University Name', 'Course', 'Status', 'Priority', 'Opening Date', 
       'Deadline', 'Date Applied', 'Fee Status', 'Application Fee', 
-      'Portal', 'VPD Required', 'VPD Status', 'Course Link', 'Remarks'
+      'Portal', 'VPD Required', 'VPD Status', 'GRE Requirement', 'Course Link', 'Remarks'
     ];
 
     const rows = applications.map(app => [
@@ -148,6 +145,7 @@ export default function App() {
       `"${app.portal || 'Direct Portal'}"`,
       `"${app.vpdRequired || 'No'}"`,
       `"${app.vpdStatus || 'Pending'}"`,
+      `"${app.greRequired || 'No'}"`,
       `"${app.courseLink || ''}"`,
       `"${app.remarks || ''}"`
     ]);

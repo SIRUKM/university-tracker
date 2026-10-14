@@ -1,15 +1,16 @@
 package com.upkar.unitracker.model;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Data;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "applications")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Application {
+
+    public Application() {
+    }
 
     @Id
     private String id;
@@ -20,7 +21,9 @@ public class Application {
     @Column(nullable = false)
     private String universityName;
 
+    @Column(nullable = false)
     private String course;
+
     private String status;
     private String priority;
     
@@ -31,6 +34,7 @@ public class Application {
     private String portal;
     private String vpdRequired;
     private String vpdStatus;
+    private String greRequired;
     private String applicationFee;
     private String feeStatus;
 
