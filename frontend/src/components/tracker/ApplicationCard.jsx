@@ -48,6 +48,43 @@ const reminderLabels = {
   "10_DAYS": "10d Before Deadline",
 };
 
+const REMINDER_STORAGE_KEY = "unitracker_reminders_map";
+
+const getSavedReminder = (app) => {
+  if (app?.reminderType && app.reminderType !== "NONE") {
+    return app.reminderType;
+  }
+  try {
+    const raw = localStorage.getItem(REMINDER_STORAGE_KEY);
+    if (!raw) return "NONE";
+    const map = JSON.parse(raw);
+    const keyById = app?.id;
+    const keyByName = `${(app?.universityName || "").trim().toLowerCase()}__${(app?.course || "").trim().toLowerCase()}`;
+    return map[keyById] || map[keyByName] || "NONE";
+  } catch {
+    return "NONE";
+  }
+};
+
+const saveReminderLocally = (app, reminderType) => {
+  try {
+    const raw = localStorage.getItem(REMINDER_STORAGE_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    const keyById = app?.id;
+    const keyByName = `${(app?.universityName || "").trim().toLowerCase()}__${(app?.course || "").trim().toLowerCase()}`;
+    if (!reminderType || reminderType === "NONE") {
+      if (keyById) delete map[keyById];
+      delete map[keyByName];
+    } else {
+      if (keyById) map[keyById] = reminderType;
+      map[keyByName] = reminderType;
+    }
+    localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    // ignore storage errors
+  }
+};
+
 const getDeadlineBadge = (deadlineStr) => {
   if (!deadlineStr) return null;
   const today = new Date();
@@ -78,7 +115,7 @@ const getDeadlineBadge = (deadlineStr) => {
   if (diffDays <= 30) {
     return {
       text: `${diffDays} days left`,
-      classes: "bg-amber-50 text-amber-800 border-amber-200",
+      classes: "bg-amber-50 text-amber-800 border-amber-300",
     };
   }
   return {
@@ -106,16 +143,21 @@ export default function ApplicationCard({
   const { isSignedIn, user } = useUser();
   const userEmail = user?.primaryEmailAddress?.emailAddress || null;
 
-  const [formData, setFormData] = useState(app);
+  const [formData, setFormData] = useState(() => ({
+    ...app,
+    reminderType: getSavedReminder(app),
+  }));
   const [isExpanded, setIsExpanded] = useState(isDraft);
   const [courseError, setCourseError] = useState(false);
   const [saveState, setSaveState] = useState("idle");
   const [showReminderMenu, setShowReminderMenu] = useState(false);
-  const [justSetReminder, setJustSetReminder] = useState(false);
   const reminderMenuRef = useRef(null);
 
   useEffect(() => {
-    setFormData(app);
+    setFormData({
+      ...app,
+      reminderType: getSavedReminder(app),
+    });
     setCourseError(false);
   }, [app]);
 
@@ -153,6 +195,7 @@ export default function ApplicationCard({
     setCourseError(false);
     setSaveState("saving");
     try {
+      saveReminderLocally(formData, formData.reminderType);
       await onSave({
         ...formData,
         course: formData.course.trim(),
@@ -170,7 +213,7 @@ export default function ApplicationCard({
   const handleSelectReminderOption = async (optionType) => {
     setShowReminderMenu(false);
 
-    // Options 1, 2, 3, or "none": Direct Email Reminder (NO Google Calendar popup)
+    // Direct Email Reminder Presets ("opening", "15days", "10days", "none")
     if (optionType !== "custom") {
       if (!isSignedIn && optionType !== "none") {
         alert("Please sign in at the top right to receive automated email reminders in your inbox.");
@@ -193,12 +236,10 @@ export default function ApplicationCard({
         reminderType: mappedType,
         reminderSent: false,
       };
-      setFormData(updated);
 
-      if (mappedType !== "NONE") {
-        setJustSetReminder(true);
-        setTimeout(() => setJustSetReminder(false), 3000);
-      }
+      // Save both in local storage and component state so it stays static permanently
+      saveReminderLocally(updated, mappedType);
+      setFormData(updated);
 
       if (!isDraft) {
         setSaveState("saving");
@@ -213,7 +254,7 @@ export default function ApplicationCard({
       return;
     }
 
-    // Option 4 ("custom"): Opens Google Calendar in a new tab
+    // "custom" option: Opens Google Calendar
     const uni = formData.universityName;
     const course = formData.course || "Master's";
     const baseDate =
@@ -282,7 +323,7 @@ export default function ApplicationCard({
             </span>
           )}
 
-          {/* Remind Me Button + Adjacent Active Reminder Status Badge */}
+          {/* Remind Me Button + Static Adjacent Reminder Badge */}
           {(formData.deadline || formData.openingDate) && (
             <div className="flex flex-wrap items-center gap-2" ref={reminderMenuRef}>
               <div className="relative">
@@ -385,14 +426,10 @@ export default function ApplicationCard({
                 )}
               </div>
 
-              {/* Adjacent Visual Indicator when a Reminder is Set */}
+              {/* Static Permanent Badge Adjacent to "Remind Me" */}
               {activeReminderLabel && (
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all ${
-                    justSetReminder
-                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                  }`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-600 text-white border border-emerald-600 shadow-sm"
                   title={`Automated email reminder active for ${formData.universityName} (${formData.course || "Course"})`}
                 >
                   <Check className="h-3 w-3 stroke-[2.5]" />
@@ -400,7 +437,7 @@ export default function ApplicationCard({
                   <button
                     type="button"
                     onClick={() => handleSelectReminderOption("none")}
-                    className="ml-0.5 hover:text-red-600 transition-colors"
+                    className="ml-0.5 hover:text-emerald-200 transition-colors"
                     title="Remove reminder"
                   >
                     <X className="h-3 w-3" />
