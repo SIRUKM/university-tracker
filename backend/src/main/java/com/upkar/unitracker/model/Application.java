@@ -18,6 +18,8 @@ public class Application {
     @Column(name = "user_id", nullable = false)
     private String userId;
 
+    private String userEmail;
+
     @Column(nullable = false)
     private String universityName;
 
@@ -37,6 +39,9 @@ public class Application {
     private String greRequired;
     private String applicationFee;
     private String feeStatus;
+
+    private String reminderType;
+    private Boolean reminderSent;
 
     @Column(columnDefinition = "TEXT")
     private String courseLink;
