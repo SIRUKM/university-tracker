@@ -43,4 +43,9 @@ public class Application {
 
     @Column(columnDefinition = "TEXT")
     private String remarks;
+
+    // Direct Email Reminder Fields
+    private String userEmail;
+    private String reminderType = "NONE"; // "NONE", "OPENING", "15_DAYS", "10_DAYS"
+    private Boolean reminderSent = false;
 }
