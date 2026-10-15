@@ -13,8 +13,6 @@ const GUEST_STORAGE_KEY = 'unitracker_guest_data';
 const normalizePayload = (data, email) => ({
   ...data,
   userEmail: email || data.userEmail || null,
-  reminderType: data.reminderType || 'NONE',
-  reminderSent: data.reminderSent ?? false,
   openingDate: data.openingDate || null,
   dateApplied: data.dateApplied || null,
   deadline: data.deadline || null,
@@ -29,9 +27,8 @@ export default function App() {
   const [draftApp, setDraftApp] = useState(null);
   const [sortBy, setSortBy] = useState('priority');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [isDragging, setIsDragging] = useState(false);
 
-  // Background wake-up ping for Render free-tier container
+  // Background wake-up ping for Render free-tier container on initial page load
   useEffect(() => {
     axios.get(API_BASE_URL).catch(() => {});
   }, []);
@@ -51,6 +48,7 @@ export default function App() {
           const token = await getToken();
           const headers = { Authorization: `Bearer ${token}` };
 
+          // Check if user created applications in Guest Mode before signing in
           const guestRaw = localStorage.getItem(GUEST_STORAGE_KEY);
           if (guestRaw) {
             const guestApps = JSON.parse(guestRaw);
@@ -207,112 +205,108 @@ export default function App() {
     document.body.removeChild(link);
   };
 
-  // Fee cleaner helper
-  const cleanFeeAmount = (feeStr) => {
-    if (!feeStr) return "";
-    const cleaned = String(feeStr).replace(/[^0-9.]/g, "");
-    const val = parseFloat(cleaned);
-    if (isNaN(val) || val === 0) return "";
-    return `${Math.round(val)} EUR`;
-  };
 
-  // Universal CSV Import Processor
-  const processCsvText = (text) => {
-    const lines = text.split("\n").map(l => l.trim()).filter((line) => line !== "");
-    if (lines.length < 2) {
-      alert("The CSV file appears to be empty.");
-      return;
-    }
+   // Universal CSV Import Handler with Duplicate Checking & Upsert (Update if exists)
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    const parseRow = (rowStr) => {
-      const res = [];
-      let current = "";
-      let inQuotes = false;
-      for (let i = 0; i < rowStr.length; i++) {
-        const char = rowStr[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === "," && !inQuotes) {
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        const lines = text.split("\n").map(l => l.trim()).filter((line) => line !== "");
+        if (lines.length < 2) {
+          alert("The CSV file appears to be empty.");
+          return;
+        }
+
+        const parseRow = (rowStr) => {
+          const res = [];
+          let current = "";
+          let inQuotes = false;
+          for (let i = 0; i < rowStr.length; i++) {
+            const char = rowStr[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === "," && !inQuotes) {
+              res.push(current.trim().replace(/^"|"$/g, ""));
+              current = "";
+            } else {
+              current += char;
+            }
+          }
           res.push(current.trim().replace(/^"|"$/g, ""));
-          current = "";
-        } else {
-          current += char;
+          return res;
+        };
+
+        const parseDateToISO = (dateStr) => {
+          if (!dateStr || !dateStr.trim()) return null;
+          const clean = dateStr.trim();
+          if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+
+          const slashMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+          if (slashMatch) {
+            const [, p1, p2, yyyy] = slashMatch;
+            const day = parseInt(p1, 10) > 12 ? p1 : p1;
+            const month = parseInt(p1, 10) > 12 ? p2 : p2;
+            return `${yyyy}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          }
+
+          try {
+            const parsed = new Date(clean);
+            if (!isNaN(parsed.getTime())) {
+              const yyyy = parsed.getFullYear();
+              const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+              const dd = String(parsed.getDate()).padStart(2, "0");
+              if (yyyy > 2000 && yyyy < 2100) return `${yyyy}-${mm}-${dd}`;
+            }
+          } catch {
+            // fallback
+          }
+          return null;
+        };
+
+        let headerIndex = -1;
+        let headers = [];
+        for (let i = 0; i < lines.length; i++) {
+          const row = parseRow(lines[i]);
+          if (row.some(cell => cell.toLowerCase().includes("university name"))) {
+            headerIndex = i;
+            headers = row.map(h => h.toLowerCase());
+            break;
+          }
         }
-      }
-      res.push(current.trim().replace(/^"|"$/g, ""));
-      return res;
-    };
 
-    const parseDateToISO = (dateStr) => {
-      if (!dateStr || !dateStr.trim()) return null;
-      const clean = dateStr.trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
-
-      const slashMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (slashMatch) {
-        const [, p1, p2, yyyy] = slashMatch;
-        const day = parseInt(p1, 10) > 12 ? p1 : p1;
-        const month = parseInt(p1, 10) > 12 ? p2 : p2;
-        return `${yyyy}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      }
-
-      try {
-        const parsed = new Date(clean);
-        if (!isNaN(parsed.getTime())) {
-          const yyyy = parsed.getFullYear();
-          const mm = String(parsed.getMonth() + 1).padStart(2, "0");
-          const dd = String(parsed.getDate()).padStart(2, "0");
-          if (yyyy > 2000 && yyyy < 2100) return `${yyyy}-${mm}-${dd}`;
+        if (headerIndex === -1) {
+          alert("Could not find 'University Name' header in the CSV file.");
+          return;
         }
-      } catch {
-        // fallback
-      }
-      return null;
-    };
 
-    let headerIndex = -1;
-    let headers = [];
-    for (let i = 0; i < lines.length; i++) {
-      const row = parseRow(lines[i]);
-      if (row.some(cell => cell.toLowerCase().includes("university name"))) {
-        headerIndex = i;
-        headers = row.map(h => h.toLowerCase());
-        break;
-      }
-    }
+        const findColIndex = (keywords) => {
+          return headers.findIndex(h => keywords.some(k => h.includes(k)));
+        };
 
-    if (headerIndex === -1) {
-      alert("Could not find 'University Name' header in the CSV file.");
-      return;
-    }
+        const idxUni = findColIndex(["university name", "university"]);
+        const idxCourse = findColIndex(["course"]);
+        const idxPriority = findColIndex(["priority"]);
+        const idxAppliedYesNo = findColIndex(["applied"]);
+        const idxOpening = findColIndex(["opening"]);
+        const idxDeadline = findColIndex(["deadline"]);
+        const idxAppliedDate = findColIndex(["date of application", "date applied"]);
+        const idxPortal = findColIndex(["portal", "uni-assist"]);
+        const idxFeeStatus = findColIndex(["fee paid", "fee status"]);
+        const idxFeeAmount = findColIndex(["amount paid", "fee"]);
+        const idxVpd = findColIndex(["vpd"]);
+        const idxGre = findColIndex(["gre"]);
+        const idxLink = findColIndex(["link"]);
+        const idxRemark = findColIndex(["remark"]);
 
-    const findColIndex = (keywords) => {
-      return headers.findIndex(h => keywords.some(k => h.includes(k)));
-    };
+        if (idxUni === -1) {
+          alert("Could not locate the University Name column.");
+          return;
+        }
 
-    const idxUni = findColIndex(["university name", "university"]);
-    const idxCourse = findColIndex(["course"]);
-    const idxPriority = findColIndex(["priority"]);
-    const idxAppliedYesNo = findColIndex(["applied"]);
-    const idxStatus = findColIndex(["status"]);
-    const idxOpening = findColIndex(["opening"]);
-    const idxDeadline = findColIndex(["deadline"]);
-    const idxAppliedDate = findColIndex(["date of application", "date applied"]);
-    const idxPortal = findColIndex(["portal", "uni-assist"]);
-    const idxFeeStatus = findColIndex(["fee paid", "fee status"]);
-    const idxFeeAmount = findColIndex(["amount paid", "application fee", "fee"]);
-    const idxVpd = findColIndex(["vpd"]);
-    const idxGre = findColIndex(["gre"]);
-    const idxLink = findColIndex(["link"]);
-    const idxRemark = findColIndex(["remark"]);
-
-    if (idxUni === -1) {
-      alert("Could not locate the University Name column.");
-      return;
-    }
-
-    (async () => {
-      try {
         let updatedAppsList = [...applications];
         let addedCount = 0;
         let updatedCount = 0;
@@ -326,29 +320,25 @@ export default function App() {
 
           const courseName = idxCourse !== -1 && data[idxCourse] ? data[idxCourse] : "M.Sc. Program";
           const appliedVal = idxAppliedYesNo !== -1 && data[idxAppliedYesNo] ? data[idxAppliedYesNo].toLowerCase() : "";
-          const statusVal = idxStatus !== -1 && data[idxStatus] ? data[idxStatus] : "";
           const appliedDateParsed = idxAppliedDate !== -1 ? parseDateToISO(data[idxAppliedDate]) : null;
 
           let derivedStatus = "Drafting";
-          if (["Submitted", "Admitted", "Rejected", "Drafting"].includes(statusVal)) {
-            derivedStatus = statusVal;
-          } else if (appliedVal.includes("yes") || appliedDateParsed) {
+          if (appliedVal.includes("yes") || appliedDateParsed) {
             derivedStatus = "Submitted";
           }
 
           const csvOpeningDate = idxOpening !== -1 ? parseDateToISO(data[idxOpening]) : null;
           const csvDeadline = idxDeadline !== -1 ? parseDateToISO(data[idxDeadline]) : null;
-          const rawPriority = idxPriority !== -1 && data[idxPriority] ? String(data[idxPriority]).replace(/[^0-9]/g, "") : "1";
-          const csvPriority = ["1", "2", "3"].includes(rawPriority) ? rawPriority : "1";
+          const csvPriority = idxPriority !== -1 && data[idxPriority] ? String(data[idxPriority]).replace(/[^0-9]/g, "") || "1" : "1";
           const csvFeeStatus = idxFeeStatus !== -1 && data[idxFeeStatus] ? data[idxFeeStatus] : "Pending";
-          const rawFeeAmount = idxFeeAmount !== -1 && data[idxFeeAmount] ? data[idxFeeAmount] : "";
-          const csvFeeAmount = cleanFeeAmount(rawFeeAmount);
+          const csvFeeAmount = idxFeeAmount !== -1 && data[idxFeeAmount] ? data[idxFeeAmount] : "";
           const csvPortal = idxPortal !== -1 && data[idxPortal] && data[idxPortal].toLowerCase().includes("uni-assist") ? "Uni-Assist" : "Direct Portal";
           const csvVpd = idxVpd !== -1 && data[idxVpd] && data[idxVpd].toLowerCase().includes("yes") ? "Yes" : "No";
           const csvGre = idxGre !== -1 && data[idxGre] ? data[idxGre] : "No";
           const csvLink = idxLink !== -1 && data[idxLink] ? data[idxLink] : "";
           const csvRemark = idxRemark !== -1 && data[idxRemark] ? data[idxRemark] : "";
 
+          // Check if university + course already exists in state
           const existingIndex = updatedAppsList.findIndex(
             (app) =>
               app.universityName.trim().toLowerCase() === uniName.trim().toLowerCase() &&
@@ -356,6 +346,7 @@ export default function App() {
           );
 
           if (existingIndex !== -1) {
+            // Update existing record
             updatedAppsList[existingIndex] = {
               ...updatedAppsList[existingIndex],
               status: derivedStatus,
@@ -373,6 +364,7 @@ export default function App() {
             };
             updatedCount++;
 
+            // If logged in, update on backend database via PUT
             if (isSignedIn) {
               const token = await getToken();
               await axios.put(
@@ -382,6 +374,7 @@ export default function App() {
               ).catch(() => {});
             }
           } else {
+            // Create new record
             const newObj = {
               id: crypto.randomUUID(),
               universityName: uniName,
@@ -406,6 +399,7 @@ export default function App() {
             updatedAppsList.push(newObj);
             addedCount++;
 
+            // If logged in, save to backend via POST
             if (isSignedIn) {
               const token = await getToken();
               const response = await axios.post(
@@ -414,6 +408,7 @@ export default function App() {
                 { headers: { Authorization: `Bearer ${token}` } }
               ).catch(() => null);
               if (response && response.data) {
+                // replace local temporary ID with database ID
                 newObj.id = response.data.id;
               }
             }
@@ -428,41 +423,15 @@ export default function App() {
         alert(`CSV Import Complete: ${addedCount} added, ${updatedCount} updated.`);
       } catch (err) {
         console.error("Error parsing CSV:", err);
-        alert("Failed to parse CSV file.");
+        alert("Failed to import CSV file.");
       }
-    })();
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => processCsvText(event.target.result);
+    };
     reader.readAsText(file);
     e.target.value = null;
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file && file.name.endsWith(".csv")) {
-      const reader = new FileReader();
-      reader.onload = (event) => processCsvText(event.target.result);
-      reader.readAsText(file);
-    } else {
-      alert("Please drop a valid .csv file.");
-    }
-  };
 
   const filteredAndSortedApplications = useMemo(() => {
     const filtered = applications.filter((app) => {
@@ -493,23 +462,8 @@ export default function App() {
 
   return (
     <MainLayout>
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`space-y-8 relative transition-all rounded-2xl ${
-          isDragging ? 'ring-4 ring-black/10 bg-gray-50/80 p-4 border-2 border-dashed border-black' : ''
-        }`}
-      >
-        {isDragging && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-2xl pointer-events-none">
-            <div className="text-center space-y-2">
-              <p className="text-lg font-bold text-gray-900">Drop your CSV file here to import</p>
-              <p className="text-xs text-gray-500">Supports global date formats, fee cleaning, and automated upsert</p>
-            </div>
-          </div>
-        )}
-
+      <div className="space-y-8">
+        
         {/* Title & Counter Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -524,6 +478,7 @@ export default function App() {
               <span>{applications.length} Tracked</span>
             </div>
 
+            {/* Hidden CSV Input */}
             <input
               type="file"
               id="csvFileInput"
@@ -535,7 +490,7 @@ export default function App() {
             <button
               onClick={() => document.getElementById('csvFileInput').click()}
               className="flex items-center space-x-2 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm"
-              title="Import existing applications from an Excel or CSV file (or drag & drop)"
+              title="Import existing applications from an Excel or CSV file"
             >
               <Upload className="h-4 w-4" />
               <span>Import CSV</span>
@@ -562,6 +517,7 @@ export default function App() {
         {/* Filter Pills & Sorting Toolbar */}
         {applications.length > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-gray-200 px-4 py-3 rounded-xl shadow-sm">
+            {/* Status Filter Pills */}
             <div className="flex flex-wrap items-center gap-1.5">
               {filterTabs.map((tab) => (
                 <button
@@ -579,6 +535,7 @@ export default function App() {
               ))}
             </div>
 
+            {/* Sort Dropdown */}
             <div className="flex items-center space-x-2 shrink-0">
               <ArrowUpDown className="h-4 w-4 text-gray-500" />
               <span className="text-xs font-semibold text-gray-600">Sort:</span>
@@ -608,7 +565,6 @@ export default function App() {
               isDraft={true}
               onSave={saveDraft}
               onCancelDraft={cancelDraft}
-              isSignedIn={isSignedIn}
             />
           </div>
         )}
@@ -627,7 +583,7 @@ export default function App() {
               </h3>
               <p className="text-gray-500 text-sm max-w-md mx-auto">
                 {applications.length === 0
-                  ? 'Use the search bar above to look up any university in Germany or drag & drop a CSV file.'
+                  ? 'Use the search bar above to look up any university in Germany and start adding your applications.'
                   : 'Switch the filter tab above to view your other tracked universities.'}
               </p>
             </div>
@@ -638,11 +594,11 @@ export default function App() {
                 app={app}
                 onSave={updateExistingApplication}
                 onRemove={removeApplication}
-                isSignedIn={isSignedIn}
               />
             ))
           )}
         </div>
+
       </div>
     </MainLayout>
   );
