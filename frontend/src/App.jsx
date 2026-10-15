@@ -212,10 +212,10 @@ export default function App() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       try {
         const text = event.target.result;
-        const lines = text.split("\n").map(l => l.trim()).filter((line) => line !== "");
+        const lines = text.split("\n").map((l) => l.trim()).filter((line) => line !== "");
         if (lines.length < 2) {
           alert("The CSV file appears to be empty.");
           return;
@@ -248,9 +248,7 @@ export default function App() {
           const slashMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
           if (slashMatch) {
             const [, p1, p2, yyyy] = slashMatch;
-            const day = parseInt(p1, 10) > 12 ? p1 : p1;
-            const month = parseInt(p1, 10) > 12 ? p2 : p2;
-            return `${yyyy}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            return `${yyyy}-${String(p2).padStart(2, "0")}-${String(p1).padStart(2, "0")}`;
           }
 
           try {
@@ -267,13 +265,21 @@ export default function App() {
           return null;
         };
 
+        const cleanFee = (feeStr) => {
+          if (!feeStr) return "";
+          const cleaned = String(feeStr).replace(/[^0-9.]/g, "");
+          const val = parseFloat(cleaned);
+          if (isNaN(val) || val === 0) return "";
+          return `${Math.round(val)} EUR`;
+        };
+
         let headerIndex = -1;
         let headers = [];
         for (let i = 0; i < lines.length; i++) {
           const row = parseRow(lines[i]);
-          if (row.some(cell => cell.toLowerCase().includes("university name"))) {
+          if (row.some((cell) => cell.toLowerCase().includes("university name"))) {
             headerIndex = i;
-            headers = row.map(h => h.toLowerCase());
+            headers = row.map((h) => h.toLowerCase());
             break;
           }
         }
@@ -283,33 +289,27 @@ export default function App() {
           return;
         }
 
-        const findColIndex = (keywords) => {
-          return headers.findIndex(h => keywords.some(k => h.includes(k)));
-        };
+        const findColIndex = (keywords) =>
+          headers.findIndex((h) => keywords.some((k) => h.includes(k)));
 
         const idxUni = findColIndex(["university name", "university"]);
         const idxCourse = findColIndex(["course"]);
         const idxPriority = findColIndex(["priority"]);
         const idxAppliedYesNo = findColIndex(["applied"]);
+        const idxStatus = findColIndex(["status"]);
         const idxOpening = findColIndex(["opening"]);
         const idxDeadline = findColIndex(["deadline"]);
         const idxAppliedDate = findColIndex(["date of application", "date applied"]);
         const idxPortal = findColIndex(["portal", "uni-assist"]);
         const idxFeeStatus = findColIndex(["fee paid", "fee status"]);
-        const idxFeeAmount = findColIndex(["amount paid", "fee"]);
+        const idxFeeAmount = findColIndex(["amount paid", "application fee", "fee"]);
         const idxVpd = findColIndex(["vpd"]);
         const idxGre = findColIndex(["gre"]);
         const idxLink = findColIndex(["link"]);
         const idxRemark = findColIndex(["remark"]);
 
-        if (idxUni === -1) {
-          alert("Could not locate the University Name column.");
-          return;
-        }
-
-        let updatedAppsList = [...applications];
-        let addedCount = 0;
-        let updatedCount = 0;
+        // 1. Deduplicate rows inside the CSV itself by (University + Course)
+        const importedMap = new Map();
 
         for (let i = headerIndex + 1; i < lines.length; i++) {
           const data = parseRow(lines[i]);
@@ -320,107 +320,105 @@ export default function App() {
 
           const courseName = idxCourse !== -1 && data[idxCourse] ? data[idxCourse] : "M.Sc. Program";
           const appliedVal = idxAppliedYesNo !== -1 && data[idxAppliedYesNo] ? data[idxAppliedYesNo].toLowerCase() : "";
+          const statusVal = idxStatus !== -1 && data[idxStatus] ? data[idxStatus] : "";
           const appliedDateParsed = idxAppliedDate !== -1 ? parseDateToISO(data[idxAppliedDate]) : null;
 
           let derivedStatus = "Drafting";
-          if (appliedVal.includes("yes") || appliedDateParsed) {
+          if (["Submitted", "Admitted", "Rejected", "Drafting"].includes(statusVal)) {
+            derivedStatus = statusVal;
+          } else if (appliedVal.includes("yes") || appliedDateParsed) {
             derivedStatus = "Submitted";
           }
 
-          const csvOpeningDate = idxOpening !== -1 ? parseDateToISO(data[idxOpening]) : null;
-          const csvDeadline = idxDeadline !== -1 ? parseDateToISO(data[idxDeadline]) : null;
-          const csvPriority = idxPriority !== -1 && data[idxPriority] ? String(data[idxPriority]).replace(/[^0-9]/g, "") || "1" : "1";
-          const csvFeeStatus = idxFeeStatus !== -1 && data[idxFeeStatus] ? data[idxFeeStatus] : "Pending";
-          const csvFeeAmount = idxFeeAmount !== -1 && data[idxFeeAmount] ? data[idxFeeAmount] : "";
-          const csvPortal = idxPortal !== -1 && data[idxPortal] && data[idxPortal].toLowerCase().includes("uni-assist") ? "Uni-Assist" : "Direct Portal";
-          const csvVpd = idxVpd !== -1 && data[idxVpd] && data[idxVpd].toLowerCase().includes("yes") ? "Yes" : "No";
-          const csvGre = idxGre !== -1 && data[idxGre] ? data[idxGre] : "No";
-          const csvLink = idxLink !== -1 && data[idxLink] ? data[idxLink] : "";
-          const csvRemark = idxRemark !== -1 && data[idxRemark] ? data[idxRemark] : "";
+          const rawPriority = idxPriority !== -1 && data[idxPriority] ? String(data[idxPriority]).replace(/[^0-9]/g, "") : "1";
+          const csvPriority = ["1", "2", "3"].includes(rawPriority) ? rawPriority : "1";
 
-          // Check if university + course already exists in state
-          const existingIndex = updatedAppsList.findIndex(
-            (app) =>
-              app.universityName.trim().toLowerCase() === uniName.trim().toLowerCase() &&
-              (app.course || "").trim().toLowerCase() === courseName.trim().toLowerCase()
-          );
+          const uniqueKey = `${uniName.trim().toLowerCase()}__${courseName.trim().toLowerCase()}`;
 
-          if (existingIndex !== -1) {
-            // Update existing record
-            updatedAppsList[existingIndex] = {
-              ...updatedAppsList[existingIndex],
-              status: derivedStatus,
-              priority: csvPriority,
-              openingDate: csvOpeningDate,
-              deadline: csvDeadline,
-              dateApplied: appliedDateParsed,
-              feeStatus: csvFeeStatus,
-              applicationFee: csvFeeAmount,
-              portal: csvPortal,
-              vpdRequired: csvVpd,
-              greRequired: csvGre,
-              courseLink: csvLink,
-              remarks: csvRemark,
+          importedMap.set(uniqueKey, {
+            universityName: uniName.trim(),
+            course: courseName.trim(),
+            status: derivedStatus,
+            priority: csvPriority,
+            openingDate: idxOpening !== -1 ? parseDateToISO(data[idxOpening]) : null,
+            deadline: idxDeadline !== -1 ? parseDateToISO(data[idxDeadline]) : null,
+            dateApplied: appliedDateParsed,
+            feeStatus: idxFeeStatus !== -1 && data[idxFeeStatus] ? data[idxFeeStatus] : "Pending",
+            applicationFee: idxFeeAmount !== -1 ? cleanFee(data[idxFeeAmount]) : "",
+            portal: idxPortal !== -1 && data[idxPortal]?.toLowerCase().includes("uni-assist") ? "Uni-Assist" : "Direct Portal",
+            vpdRequired: idxVpd !== -1 && data[idxVpd]?.toLowerCase().includes("yes") ? "Yes" : "No",
+            vpdStatus: "Pending",
+            greRequired: idxGre !== -1 && data[idxGre] ? data[idxGre] : "No",
+            courseLink: idxLink !== -1 && data[idxLink] ? data[idxLink] : "",
+            remarks: idxRemark !== -1 && data[idxRemark] ? data[idxRemark] : "",
+          });
+        }
+
+        // 2. Also deduplicate existing state and merge latest CSV values
+        const mergedMap = new Map();
+        for (const existingApp of applications) {
+          const key = `${(existingApp.universityName || "").trim().toLowerCase()}__${(existingApp.course || "").trim().toLowerCase()}`;
+          mergedMap.set(key, existingApp);
+        }
+
+        let addedCount = 0;
+        let updatedCount = 0;
+        const toCreate = [];
+        const toUpdate = [];
+
+        for (const [key, csvItem] of importedMap.entries()) {
+          if (mergedMap.has(key)) {
+            const existing = mergedMap.get(key);
+            const updatedObj = {
+              ...existing,
+              ...csvItem,
+              id: existing.id,
             };
+            mergedMap.set(key, updatedObj);
+            toUpdate.push(updatedObj);
             updatedCount++;
-
-            // If logged in, update on backend database via PUT
-            if (isSignedIn) {
-              const token = await getToken();
-              await axios.put(
-                `${API_BASE_URL}/${updatedAppsList[existingIndex].id}`,
-                normalizePayload(updatedAppsList[existingIndex], userEmail),
-                { headers: { Authorization: `Bearer ${token}` } }
-              ).catch(() => {});
-            }
           } else {
-            // Create new record
             const newObj = {
+              ...csvItem,
               id: crypto.randomUUID(),
-              universityName: uniName,
-              course: courseName,
-              status: derivedStatus,
-              priority: csvPriority,
-              openingDate: csvOpeningDate,
-              deadline: csvDeadline,
-              dateApplied: appliedDateParsed,
-              feeStatus: csvFeeStatus,
-              applicationFee: csvFeeAmount,
-              portal: csvPortal,
-              vpdRequired: csvVpd,
-              vpdStatus: "Pending",
-              greRequired: csvGre,
-              courseLink: csvLink,
-              remarks: csvRemark,
-              userEmail: userEmail,
               reminderType: "NONE",
               reminderSent: false,
             };
-            updatedAppsList.push(newObj);
+            mergedMap.set(key, newObj);
+            toCreate.push(newObj);
             addedCount++;
-
-            // If logged in, save to backend via POST
-            if (isSignedIn) {
-              const token = await getToken();
-              const response = await axios.post(
-                API_BASE_URL,
-                normalizePayload(newObj, userEmail),
-                { headers: { Authorization: `Bearer ${token}` } }
-              ).catch(() => null);
-              if (response && response.data) {
-                // replace local temporary ID with database ID
-                newObj.id = response.data.id;
-              }
-            }
           }
         }
 
+        const finalAppsList = Array.from(mergedMap.values());
+
+        // 3. Instant UI state update (Zero lag!)
+        setApplications(finalAppsList);
         if (!isSignedIn) {
-          localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updatedAppsList));
+          localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(finalAppsList));
         }
 
-        setApplications([...updatedAppsList]);
         alert(`CSV Import Complete: ${addedCount} added, ${updatedCount} updated.`);
+
+        // 4. Non-blocking background sync with backend
+        if (isSignedIn) {
+          (async () => {
+            try {
+              const token = await getToken();
+              const headersAuth = { Authorization: `Bearer ${token}` };
+              await Promise.all([
+                ...toCreate.map((item) =>
+                  axios.post(API_BASE_URL, normalizePayload(item), { headers: headersAuth }).catch(() => {})
+                ),
+                ...toUpdate.map((item) =>
+                  axios.put(`${API_BASE_URL}/${item.id}`, normalizePayload(item), { headers: headersAuth }).catch(() => {})
+                ),
+              ]);
+            } catch (syncErr) {
+              console.error("Background sync error:", syncErr);
+            }
+          })();
+        }
       } catch (err) {
         console.error("Error parsing CSV:", err);
         alert("Failed to import CSV file.");
@@ -429,6 +427,7 @@ export default function App() {
     reader.readAsText(file);
     e.target.value = null;
   };
+
 
 
 

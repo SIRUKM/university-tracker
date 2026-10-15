@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useUser } from "@clerk/clerk-react";
 import {
   Trash2,
   BookOpen,
@@ -16,6 +17,7 @@ import {
   PlusCircle,
   GraduationCap,
   Bell,
+  BellRing,
   ExternalLink,
   Check,
   Loader2,
@@ -40,12 +42,19 @@ const priorityConfig = {
   },
 };
 
-// Calculate days remaining and return color-coded badge styles
+const reminderLabels = {
+  OPENING: "Opening Day",
+  "15_DAYS": "15d Before Deadline",
+  "10_DAYS": "10d Before Deadline",
+};
+
 const getDeadlineBadge = (deadlineStr) => {
   if (!deadlineStr) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const deadlineDate = new Date(`${deadlineStr}T00:00:00`);
+  if (isNaN(deadlineDate.getTime())) return null;
+
   const diffDays = Math.ceil((deadlineDate - today) / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) {
@@ -78,7 +87,6 @@ const getDeadlineBadge = (deadlineStr) => {
   };
 };
 
-// Shift a YYYY-MM-DD date by `daysOffset` and format as YYYYMMDD for Google Calendar
 const getShiftedCalendarDate = (dateStr, daysOffset = 0) => {
   const date = new Date(`${dateStr}T00:00:00`);
   date.setDate(date.getDate() + daysOffset);
@@ -95,11 +103,15 @@ export default function ApplicationCard({
   isDraft = false,
   onCancelDraft,
 }) {
+  const { isSignedIn, user } = useUser();
+  const userEmail = user?.primaryEmailAddress?.emailAddress || null;
+
   const [formData, setFormData] = useState(app);
   const [isExpanded, setIsExpanded] = useState(isDraft);
   const [courseError, setCourseError] = useState(false);
   const [saveState, setSaveState] = useState("idle");
   const [showReminderMenu, setShowReminderMenu] = useState(false);
+  const [justSetReminder, setJustSetReminder] = useState(false);
   const reminderMenuRef = useRef(null);
 
   useEffect(() => {
@@ -107,7 +119,6 @@ export default function ApplicationCard({
     setCourseError(false);
   }, [app]);
 
-  // Close the Reminder dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -124,6 +135,7 @@ export default function ApplicationCard({
   const currentPriority = priorityConfig[formData.priority] || priorityConfig["1"];
   const deadlineBadge = getDeadlineBadge(formData.deadline);
   const hasUnsavedChanges = isDraft || JSON.stringify(formData) !== JSON.stringify(app);
+  const activeReminderLabel = reminderLabels[formData.reminderType];
 
   const handleChange = (field, value) => {
     if (field === "course" && value.trim()) {
@@ -141,7 +153,11 @@ export default function ApplicationCard({
     setCourseError(false);
     setSaveState("saving");
     try {
-      await onSave({ ...formData, course: formData.course.trim() });
+      await onSave({
+        ...formData,
+        course: formData.course.trim(),
+        userEmail: userEmail || formData.userEmail || null,
+      });
       if (!isDraft) {
         setSaveState("saved");
         setTimeout(() => setSaveState("idle"), 2000);
@@ -151,36 +167,61 @@ export default function ApplicationCard({
     }
   };
 
-  // Open Google Calendar for the selected reminder option
-  const handleSelectReminderOption = (optionType) => {
-    const uni = formData.universityName;
-    const course = formData.course || "Master's";
-    let targetDateCompact = "";
-    let eventTitle = "";
+  const handleSelectReminderOption = async (optionType) => {
+    setShowReminderMenu(false);
 
-    if (optionType === "opening") {
-      if (!formData.openingDate) return;
-      targetDateCompact = getShiftedCalendarDate(formData.openingDate, 0);
-      eventTitle = `Application Opens: ${uni} (${course})`;
-    } else if (optionType === "15days") {
-      if (!formData.deadline) return;
-      targetDateCompact = getShiftedCalendarDate(formData.deadline, -15);
-      eventTitle = `15 Days Left to Apply: ${uni} (${course})`;
-    } else if (optionType === "10days") {
-      if (!formData.deadline) return;
-      targetDateCompact = getShiftedCalendarDate(formData.deadline, -10);
-      eventTitle = `10 Days Left to Apply: ${uni} (${course})`;
-    } else {
-      // Custom reminder (defaults to deadline date, opening date, or today)
-      const baseDate =
-        formData.deadline ||
-        formData.openingDate ||
-        new Date().toISOString().split("T")[0];
-      targetDateCompact = getShiftedCalendarDate(baseDate, 0);
-      eventTitle = `Application Reminder: ${uni} (${course})`;
+    // Options 1, 2, 3, or "none": Direct Email Reminder (NO Google Calendar popup)
+    if (optionType !== "custom") {
+      if (!isSignedIn && optionType !== "none") {
+        alert("Please sign in at the top right to receive automated email reminders in your inbox.");
+        return;
+      }
+
+      const mappedType =
+        optionType === "opening"
+          ? "OPENING"
+          : optionType === "15days"
+          ? "15_DAYS"
+          : optionType === "10days"
+          ? "10_DAYS"
+          : "NONE";
+
+      const updated = {
+        ...formData,
+        course: formData.course?.trim() || "M.Sc. Program",
+        userEmail: userEmail || formData.userEmail || null,
+        reminderType: mappedType,
+        reminderSent: false,
+      };
+      setFormData(updated);
+
+      if (mappedType !== "NONE") {
+        setJustSetReminder(true);
+        setTimeout(() => setJustSetReminder(false), 3000);
+      }
+
+      if (!isDraft) {
+        setSaveState("saving");
+        try {
+          await onSave(updated);
+          setSaveState("saved");
+          setTimeout(() => setSaveState("idle"), 2000);
+        } catch {
+          setSaveState("idle");
+        }
+      }
+      return;
     }
 
-    const title = encodeURIComponent(eventTitle);
+    // Option 4 ("custom"): Opens Google Calendar in a new tab
+    const uni = formData.universityName;
+    const course = formData.course || "Master's";
+    const baseDate =
+      formData.deadline ||
+      formData.openingDate ||
+      new Date().toISOString().split("T")[0];
+    const targetDateCompact = getShiftedCalendarDate(baseDate, 0);
+    const title = encodeURIComponent(`Application Reminder: ${uni} (${course})`);
     const details = encodeURIComponent(
       `University: ${uni}\nCourse: ${course}\nApplication Deadline: ${
         formData.deadline || "Not set"
@@ -191,7 +232,6 @@ export default function ApplicationCard({
 
     const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${targetDateCompact}/${targetDateCompact}&details=${details}`;
     window.open(calUrl, "_blank", "noopener,noreferrer");
-    setShowReminderMenu(false);
   };
 
   return (
@@ -242,78 +282,130 @@ export default function ApplicationCard({
             </span>
           )}
 
-          {/* Remind Me Dropdown Menu */}
+          {/* Remind Me Button + Adjacent Active Reminder Status Badge */}
           {(formData.deadline || formData.openingDate) && (
-            <div className="relative" ref={reminderMenuRef}>
-              <button
-                type="button"
-                onClick={() => setShowReminderMenu((prev) => !prev)}
-                className="text-xs font-medium text-gray-600 hover:text-black bg-gray-50 hover:bg-gray-100 border border-gray-200 px-2.5 py-0.5 rounded-full flex items-center space-x-1 transition-colors"
-              >
-                <Bell className="h-3 w-3" />
-                <span>Remind Me</span>
-                <ChevronDown className="h-3 w-3 ml-0.5 text-gray-400" />
-              </button>
+            <div className="flex flex-wrap items-center gap-2" ref={reminderMenuRef}>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowReminderMenu((prev) => !prev)}
+                  className={`text-xs font-semibold border px-2.5 py-0.5 rounded-full flex items-center space-x-1 transition-all ${
+                    activeReminderLabel
+                      ? "bg-gray-900 text-white border-gray-900 hover:bg-gray-800"
+                      : "bg-gray-50 text-gray-600 border-gray-200 hover:text-black hover:bg-gray-100"
+                  }`}
+                >
+                  {activeReminderLabel ? (
+                    <BellRing className="h-3 w-3 text-emerald-400" />
+                  ) : (
+                    <Bell className="h-3 w-3" />
+                  )}
+                  <span>Remind Me</span>
+                  <ChevronDown className="h-3 w-3 ml-0.5 opacity-70" />
+                </button>
 
-              {showReminderMenu && (
-                <div className="absolute left-0 mt-2 w-60 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 z-30">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Set Calendar Alert
+                {showReminderMenu && (
+                  <div className="absolute left-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 z-30">
+                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      Automated Email Alert
+                    </div>
+
+                    {/* Option 1: When Application Opens */}
+                    <button
+                      type="button"
+                      disabled={!formData.openingDate}
+                      onClick={() => handleSelectReminderOption("opening")}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="font-medium text-gray-800 flex items-center gap-1.5">
+                        {formData.reminderType === "OPENING" && (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        )}
+                        <span>When application opens</span>
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        {formData.openingDate ? formData.openingDate : "No date"}
+                      </span>
+                    </button>
+
+                    {/* Option 2: 15 Days Before Deadline */}
+                    <button
+                      type="button"
+                      disabled={!formData.deadline}
+                      onClick={() => handleSelectReminderOption("15days")}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="font-medium text-gray-800 flex items-center gap-1.5">
+                        {formData.reminderType === "15_DAYS" && (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        )}
+                        <span>15 days before deadline</span>
+                      </span>
+                      <span className="text-[10px] text-gray-400">-15d email</span>
+                    </button>
+
+                    {/* Option 3: 10 Days Before Deadline */}
+                    <button
+                      type="button"
+                      disabled={!formData.deadline}
+                      onClick={() => handleSelectReminderOption("10days")}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="font-medium text-gray-800 flex items-center gap-1.5">
+                        {formData.reminderType === "10_DAYS" && (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        )}
+                        <span>10 days before deadline</span>
+                      </span>
+                      <span className="text-[10px] text-gray-400">-10d email</span>
+                    </button>
+
+                    {activeReminderLabel && (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectReminderOption("none")}
+                        className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 font-medium transition-colors"
+                      >
+                        Turn off email reminder
+                      </button>
+                    )}
+
+                    <div className="my-1 border-t border-gray-100" />
+
+                    {/* Option 4: Custom Google Calendar Reminder */}
+                    <button
+                      type="button"
+                      onClick={() => handleSelectReminderOption("custom")}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between text-black font-semibold transition-colors"
+                    >
+                      <span>Custom calendar reminder...</span>
+                      <ExternalLink className="h-3 w-3 text-gray-400" />
+                    </button>
                   </div>
+                )}
+              </div>
 
-                  {/* Option 1: When Application Opens */}
+              {/* Adjacent Visual Indicator when a Reminder is Set */}
+              {activeReminderLabel && (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all ${
+                    justSetReminder
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  }`}
+                  title={`Automated email reminder active for ${formData.universityName} (${formData.course || "Course"})`}
+                >
+                  <Check className="h-3 w-3 stroke-[2.5]" />
+                  <span>Reminder Set: {activeReminderLabel}</span>
                   <button
                     type="button"
-                    disabled={!formData.openingDate}
-                    onClick={() => handleSelectReminderOption("opening")}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    onClick={() => handleSelectReminderOption("none")}
+                    className="ml-0.5 hover:text-red-600 transition-colors"
+                    title="Remove reminder"
                   >
-                    <span className="font-medium text-gray-800">
-                      When application opens
-                    </span>
-                    <span className="text-[10px] text-gray-400">
-                      {formData.openingDate ? formData.openingDate : "No date"}
-                    </span>
+                    <X className="h-3 w-3" />
                   </button>
-
-                  {/* Option 2: 15 Days Before Deadline */}
-                  <button
-                    type="button"
-                    disabled={!formData.deadline}
-                    onClick={() => handleSelectReminderOption("15days")}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <span className="font-medium text-gray-800">
-                      15 days before deadline
-                    </span>
-                    <span className="text-[10px] text-gray-400">-15d</span>
-                  </button>
-
-                  {/* Option 3: 10 Days Before Deadline */}
-                  <button
-                    type="button"
-                    disabled={!formData.deadline}
-                    onClick={() => handleSelectReminderOption("10days")}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <span className="font-medium text-gray-800">
-                      10 days before deadline
-                    </span>
-                    <span className="text-[10px] text-gray-400">-10d</span>
-                  </button>
-
-                  <div className="my-1 border-t border-gray-100" />
-
-                  {/* Option 4: Custom Reminder */}
-                  <button
-                    type="button"
-                    onClick={() => handleSelectReminderOption("custom")}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between text-black font-semibold transition-colors"
-                  >
-                    <span>Custom reminder...</span>
-                    <ExternalLink className="h-3 w-3 text-gray-400" />
-                  </button>
-                </div>
+                </span>
               )}
             </div>
           )}
@@ -355,7 +447,7 @@ export default function ApplicationCard({
         </div>
       </div>
 
-      {/* Primary Row: Course Name (Mandatory), Priority Level, Application Status */}
+      {/* Primary Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
         <div className="space-y-1">
           <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
