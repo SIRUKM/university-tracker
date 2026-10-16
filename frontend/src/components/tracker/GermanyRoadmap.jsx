@@ -14,6 +14,9 @@ import {
   ChevronUp,
   Sparkles,
   BadgeEuro,
+  Calendar,
+  Plus,
+  X,
 } from "lucide-react";
 
 // Replace these URLs with your approved Partner/Affiliate tracking links
@@ -142,6 +145,19 @@ const ROADMAP_STEPS = [
 ];
 
 const ROADMAP_STORAGE_KEY = "unitracker_germany_roadmap_v1";
+const ROADMAP_CUSTOM_TASKS_KEY = "unitracker_germany_roadmap_custom_tasks_v1";
+const ROADMAP_DATES_KEY = "unitracker_germany_roadmap_dates_v1";
+
+const formatDisplayDate = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    const [yyyy, mm, dd] = dateStr.split("-");
+    const d = new Date(parseInt(yyyy, 10), parseInt(mm, 10) - 1, parseInt(dd, 10));
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  } catch {
+    return dateStr;
+  }
+};
 
 export default function GermanyRoadmap() {
   const [completedStepIds, setCompletedStepIds] = useState(() => {
@@ -152,7 +168,28 @@ export default function GermanyRoadmap() {
       return [];
     }
   });
-  const [isOpen, setIsOpen] = useState(true);
+
+  const [customTasks, setCustomTasks] = useState(() => {
+    try {
+      const saved = localStorage.getItem(ROADMAP_CUSTOM_TASKS_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [taskDates, setTaskDates] = useState(() => {
+    try {
+      const saved = localStorage.getItem(ROADMAP_DATES_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [addingPhaseId, setAddingPhaseId] = useState(null);
+  const [newCustomTaskText, setNewCustomTaskText] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -162,13 +199,32 @@ export default function GermanyRoadmap() {
     }
   }, [completedStepIds]);
 
-  const allSubTasks = ROADMAP_STEPS.flatMap((s) => s.tasks);
+  useEffect(() => {
+    try {
+      localStorage.setItem(ROADMAP_CUSTOM_TASKS_KEY, JSON.stringify(customTasks));
+    } catch {
+      // ignore storage errors
+    }
+  }, [customTasks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ROADMAP_DATES_KEY, JSON.stringify(taskDates));
+    } catch {
+      // ignore storage errors
+    }
+  }, [taskDates]);
+
+  const allSubTasks = ROADMAP_STEPS.flatMap((s) => [
+    ...s.tasks,
+    ...(customTasks[s.id] || []),
+  ]);
   const completedCount = allSubTasks.filter((t) =>
     completedStepIds.includes(t.id)
   ).length;
-  const progressPercent = Math.round(
-    (completedCount / allSubTasks.length) * 100
-  );
+  const progressPercent = allSubTasks.length > 0
+    ? Math.round((completedCount / allSubTasks.length) * 100)
+    : 0;
 
   const toggleSubTask = (taskId) => {
     setCompletedStepIds((prev) =>
@@ -176,6 +232,45 @@ export default function GermanyRoadmap() {
         ? prev.filter((id) => id !== taskId)
         : [...prev, taskId]
     );
+  };
+
+  const handleAddCustomTask = (phaseId) => {
+    if (!newCustomTaskText.trim()) return;
+    const newTask = {
+      id: `custom-${crypto.randomUUID()}`,
+      label: newCustomTaskText.trim(),
+      isCustom: true,
+    };
+    setCustomTasks((prev) => ({
+      ...prev,
+      [phaseId]: [...(prev[phaseId] || []), newTask],
+    }));
+    setNewCustomTaskText("");
+    setAddingPhaseId(null);
+  };
+
+  const handleDeleteCustomTask = (phaseId, taskId) => {
+    setCustomTasks((prev) => ({
+      ...prev,
+      [phaseId]: (prev[phaseId] || []).filter((t) => t.id !== taskId),
+    }));
+    setCompletedStepIds((prev) => prev.filter((id) => id !== taskId));
+    setTaskDates((prev) => {
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
+  };
+
+  const handleSetTaskDate = (taskId, dateStr) => {
+    setTaskDates((prev) => {
+      if (!dateStr) {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      }
+      return { ...prev, [taskId]: dateStr };
+    });
   };
 
   return (
@@ -264,10 +359,15 @@ export default function GermanyRoadmap() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {ROADMAP_STEPS.map((step) => {
               const IconComponent = step.icon;
-              const stepDoneCount = step.tasks.filter((t) =>
+              const phaseTasks = [
+                ...step.tasks,
+                ...(customTasks[step.id] || []),
+              ];
+              const stepDoneCount = phaseTasks.filter((t) =>
                 completedStepIds.includes(t.id)
               ).length;
-              const isPhaseComplete = stepDoneCount === step.tasks.length;
+              const isPhaseComplete =
+                phaseTasks.length > 0 && stepDoneCount === phaseTasks.length;
 
               return (
                 <div
@@ -309,7 +409,7 @@ export default function GermanyRoadmap() {
                             : "bg-gray-50 text-gray-600 border-gray-200"
                         }`}
                       >
-                        {stepDoneCount}/{step.tasks.length}
+                        {stepDoneCount}/{phaseTasks.length}
                       </span>
                     </div>
 
@@ -319,32 +419,142 @@ export default function GermanyRoadmap() {
 
                     {/* Checklist items for this phase */}
                     <div className="space-y-1.5 pt-1">
-                      {step.tasks.map((task) => {
+                      {phaseTasks.map((task) => {
                         const checked = completedStepIds.includes(task.id);
+                        const taskDate = taskDates[task.id];
                         return (
-                          <button
+                          <div
                             key={task.id}
-                            type="button"
-                            onClick={() => toggleSubTask(task.id)}
-                            className="w-full text-left flex items-start space-x-2 p-1.5 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                            className="group/task flex items-center justify-between p-1 rounded-lg hover:bg-gray-50 transition-colors gap-2"
                           >
-                            {checked ? (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                            ) : (
-                              <Circle className="h-4 w-4 text-gray-300 shrink-0 mt-0.5" />
-                            )}
-                            <span
-                              className={`text-xs font-medium ${
-                                checked
-                                  ? "line-through text-gray-400"
-                                  : "text-gray-800"
-                              }`}
+                            <button
+                              type="button"
+                              onClick={() => toggleSubTask(task.id)}
+                              className="flex items-start space-x-2 text-left flex-1 min-w-0 cursor-pointer"
                             >
-                              {task.label}
-                            </span>
-                          </button>
+                              {checked ? (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                              ) : (
+                                <Circle className="h-4 w-4 text-gray-300 shrink-0 mt-0.5" />
+                              )}
+                              <span
+                                className={`text-xs font-medium leading-tight ${
+                                  checked
+                                    ? "line-through text-gray-400"
+                                    : "text-gray-800"
+                                }`}
+                              >
+                                {task.label}
+                              </span>
+                            </button>
+
+                            <div className="flex items-center space-x-1 shrink-0">
+                              {/* Calendar Date Tracker */}
+                              <div className="relative inline-flex items-center group/date">
+                                <input
+                                  type="date"
+                                  value={taskDate || ""}
+                                  onChange={(e) => handleSetTaskDate(task.id, e.target.value)}
+                                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                                  title={taskDate ? `Date: ${taskDate} (click to change)` : "Set target or completion date"}
+                                />
+                                <div
+                                  className={`inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+                                    taskDate
+                                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                      : "text-gray-400 group-hover/task:text-gray-600 hover:bg-gray-100"
+                                  }`}
+                                >
+                                  <Calendar className="h-3 w-3" />
+                                  {taskDate ? (
+                                    <span>{formatDisplayDate(taskDate)}</span>
+                                  ) : (
+                                    <span className="hidden group-hover/task:inline">Date</span>
+                                  )}
+                                </div>
+                                {taskDate && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSetTaskDate(task.id, "");
+                                    }}
+                                    className="relative z-20 text-gray-400 hover:text-red-500 ml-0.5 p-0.5 cursor-pointer"
+                                    title="Clear date"
+                                  >
+                                    <X className="h-2.5 w-2.5" />
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Custom task delete button */}
+                              {task.isCustom && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCustomTask(step.id, task.id)}
+                                  className="text-gray-400 hover:text-red-500 p-0.5 rounded hover:bg-gray-100 transition-colors cursor-pointer"
+                                  title="Delete custom task"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         );
                       })}
+
+                      {/* Add custom task inline form */}
+                      {addingPhaseId === step.id ? (
+                        <div className="flex items-center space-x-1.5 pt-1">
+                          <input
+                            type="text"
+                            placeholder="Add custom task for this phase..."
+                            value={newCustomTaskText}
+                            onChange={(e) => setNewCustomTaskText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddCustomTask(step.id);
+                              } else if (e.key === "Escape") {
+                                setAddingPhaseId(null);
+                                setNewCustomTaskText("");
+                              }
+                            }}
+                            autoFocus
+                            className="flex-1 p-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-black"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddCustomTask(step.id)}
+                            className="bg-black hover:bg-gray-800 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                          >
+                            Add
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddingPhaseId(null);
+                              setNewCustomTaskText("");
+                            }}
+                            className="text-gray-400 hover:text-gray-600 p-1 rounded-lg transition-colors cursor-pointer"
+                            title="Cancel"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddingPhaseId(step.id);
+                            setNewCustomTaskText("");
+                          }}
+                          className="pt-1 text-[11px] font-semibold text-gray-500 hover:text-black flex items-center space-x-1 transition-colors cursor-pointer"
+                        >
+                          <Plus className="h-3 w-3" />
+                          <span>Add custom step</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
