@@ -6,6 +6,8 @@ import SearchBar from './components/tracker/SearchBar';
 import ApplicationCard from './components/tracker/ApplicationCard';
 import AnalyticsDashboard from './components/tracker/AnalyticsDashboard';
 import { FolderPlus, ArrowUpDown, Download, Upload } from 'lucide-react';
+import GermanyRoadmap from "./components/tracker/GermanyRoadmap";
+
 
 const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
 const GUEST_STORAGE_KEY = 'unitracker_guest_data';
@@ -506,6 +508,8 @@ export default function App() {
             )}
           </div>
         </div>
+
+        <GermanyRoadmap />
 
         {/* Analytics Summary Dashboard */}
         <AnalyticsDashboard applications={applications} />

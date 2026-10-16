@@ -44,6 +44,9 @@ public class Application {
     private Boolean reminderSent;
 
     @Column(columnDefinition = "TEXT")
+    private String checklistJson;
+
+    @Column(columnDefinition = "TEXT")
     private String courseLink;
 
     @Column(columnDefinition = "TEXT")

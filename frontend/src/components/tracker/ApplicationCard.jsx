@@ -22,6 +22,9 @@ import {
   Check,
   Loader2,
   X,
+  ListTodo,
+  Plus,
+  Sparkles,
 } from "lucide-react";
 
 const priorityConfig = {
@@ -49,6 +52,18 @@ const reminderLabels = {
 };
 
 const REMINDER_STORAGE_KEY = "unitracker_reminders_map";
+const CHECKLIST_STORAGE_KEY = "unitracker_checklists_map";
+
+const DEFAULT_GERMAN_TASKS = [
+  "Tailor course-specific Letter of Motivation (SOP)",
+  "Update Tabular CV / Europass format",
+  "Check module handbook & ECTS credit table",
+  "Apply for Uni-Assist VPD (if required)",
+  "Compile APS Certificate, IELTS/TOEFL & Transcripts",
+];
+
+const getAppCompositeKey = (app) =>
+  `${(app?.universityName || "").trim().toLowerCase()}__${(app?.course || "").trim().toLowerCase()}`;
 
 const getSavedReminder = (app) => {
   if (app?.reminderType && app.reminderType !== "NONE") {
@@ -59,7 +74,7 @@ const getSavedReminder = (app) => {
     if (!raw) return "NONE";
     const map = JSON.parse(raw);
     const keyById = app?.id;
-    const keyByName = `${(app?.universityName || "").trim().toLowerCase()}__${(app?.course || "").trim().toLowerCase()}`;
+    const keyByName = getAppCompositeKey(app);
     return map[keyById] || map[keyByName] || "NONE";
   } catch {
     return "NONE";
@@ -71,7 +86,7 @@ const saveReminderLocally = (app, reminderType) => {
     const raw = localStorage.getItem(REMINDER_STORAGE_KEY);
     const map = raw ? JSON.parse(raw) : {};
     const keyById = app?.id;
-    const keyByName = `${(app?.universityName || "").trim().toLowerCase()}__${(app?.course || "").trim().toLowerCase()}`;
+    const keyByName = getAppCompositeKey(app);
     if (!reminderType || reminderType === "NONE") {
       if (keyById) delete map[keyById];
       delete map[keyByName];
@@ -80,6 +95,41 @@ const saveReminderLocally = (app, reminderType) => {
       map[keyByName] = reminderType;
     }
     localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    // ignore storage errors
+  }
+};
+
+const getSavedChecklist = (app) => {
+  if (app?.checklistJson) {
+    try {
+      const parsed = JSON.parse(app.checklistJson);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // fallback to localStorage
+    }
+  }
+  try {
+    const raw = localStorage.getItem(CHECKLIST_STORAGE_KEY);
+    if (!raw) return [];
+    const map = JSON.parse(raw);
+    const keyById = app?.id;
+    const keyByName = getAppCompositeKey(app);
+    return map[keyById] || map[keyByName] || [];
+  } catch {
+    return [];
+  }
+};
+
+const saveChecklistLocally = (app, checklistArray) => {
+  try {
+    const raw = localStorage.getItem(CHECKLIST_STORAGE_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    const keyById = app?.id;
+    const keyByName = getAppCompositeKey(app);
+    if (keyById) map[keyById] = checklistArray;
+    map[keyByName] = checklistArray;
+    localStorage.setItem(CHECKLIST_STORAGE_KEY, JSON.stringify(map));
   } catch {
     // ignore storage errors
   }
@@ -143,9 +193,14 @@ export default function ApplicationCard({
   const { isSignedIn, user } = useUser();
   const userEmail = user?.primaryEmailAddress?.emailAddress || null;
 
+  const [ checklist, setChecklist ] = useState(() => getSavedChecklist(app));
+  const [ showChecklist, setShowChecklist ] = useState(false);
+  const [ newTaskText, setNewTaskText ] = useState("");
+
   const [formData, setFormData] = useState(() => ({
     ...app,
     reminderType: getSavedReminder(app),
+    checklistJson: JSON.stringify(getSavedChecklist(app)),
   }));
   const [isExpanded, setIsExpanded] = useState(isDraft);
   const [courseError, setCourseError] = useState(false);
@@ -154,9 +209,12 @@ export default function ApplicationCard({
   const reminderMenuRef = useRef(null);
 
   useEffect(() => {
+    const savedList = getSavedChecklist(app);
+    setChecklist(savedList);
     setFormData({
       ...app,
       reminderType: getSavedReminder(app),
+      checklistJson: JSON.stringify(savedList),
     });
     setCourseError(false);
   }, [app]);
@@ -179,6 +237,72 @@ export default function ApplicationCard({
   const hasUnsavedChanges = isDraft || JSON.stringify(formData) !== JSON.stringify(app);
   const activeReminderLabel = reminderLabels[formData.reminderType];
 
+  const completedTasksCount = checklist.filter((t) => t.completed).length;
+  const totalTasksCount = checklist.length;
+  const allTasksDone = totalTasksCount > 0 && completedTasksCount === totalTasksCount;
+
+  const syncChecklistChanges = async (updatedList) => {
+    setChecklist(updatedList);
+    saveChecklistLocally(formData, updatedList);
+    const serialized = JSON.stringify(updatedList);
+    const updatedFormData = {
+      ...formData,
+      checklistJson: serialized,
+    };
+    setFormData(updatedFormData);
+
+    if (!isDraft && formData.course?.trim()) {
+      try {
+        await onSave({
+          ...updatedFormData,
+          course: updatedFormData.course.trim(),
+          userEmail: userEmail || updatedFormData.userEmail || null,
+        });
+      } catch {
+        // local state is already preserved
+      }
+    }
+  };
+
+  const handleAddTask = (e) => {
+    e?.preventDefault();
+    if (!newTaskText.trim()) return;
+    const nextList = [
+      ...checklist,
+      {
+        id: crypto.randomUUID(),
+        text: newTaskText.trim(),
+        completed: false,
+      },
+    ];
+    setNewTaskText("");
+    syncChecklistChanges(nextList);
+  };
+
+  const handleToggleTask = (taskId) => {
+    const nextList = checklist.map((item) =>
+      item.id === taskId ? { ...item, completed: !item.completed } : item
+    );
+    syncChecklistChanges(nextList);
+  };
+
+  const handleDeleteTask = (taskId) => {
+    const nextList = checklist.filter((item) => item.id !== taskId);
+    syncChecklistChanges(nextList);
+  };
+
+  const handleLoadPresetTasks = () => {
+    const existingTexts = new Set(checklist.map((t) => t.text.toLowerCase()));
+    const additions = DEFAULT_GERMAN_TASKS.filter(
+      (preset) => !existingTexts.has(preset.toLowerCase())
+    ).map((preset) => ({
+      id: crypto.randomUUID(),
+      text: preset,
+      completed: false,
+    }));
+    syncChecklistChanges([...checklist, ...additions]);
+  };
+
   const handleChange = (field, value) => {
     if (field === "course" && value.trim()) {
       setCourseError(false);
@@ -196,9 +320,11 @@ export default function ApplicationCard({
     setSaveState("saving");
     try {
       saveReminderLocally(formData, formData.reminderType);
+      saveChecklistLocally(formData, checklist);
       await onSave({
         ...formData,
         course: formData.course.trim(),
+        checklistJson: JSON.stringify(checklist),
         userEmail: userEmail || formData.userEmail || null,
       });
       if (!isDraft) {
@@ -213,7 +339,6 @@ export default function ApplicationCard({
   const handleSelectReminderOption = async (optionType) => {
     setShowReminderMenu(false);
 
-    // Direct Email Reminder Presets ("opening", "15days", "10days", "none")
     if (optionType !== "custom") {
       if (!isSignedIn && optionType !== "none") {
         alert("Please sign in at the top right to receive automated email reminders in your inbox.");
@@ -235,9 +360,9 @@ export default function ApplicationCard({
         userEmail: userEmail || formData.userEmail || null,
         reminderType: mappedType,
         reminderSent: false,
+        checklistJson: JSON.stringify(checklist),
       };
 
-      // Save both in local storage and component state so it stays static permanently
       saveReminderLocally(updated, mappedType);
       setFormData(updated);
 
@@ -254,7 +379,6 @@ export default function ApplicationCard({
       return;
     }
 
-    // "custom" option: Opens Google Calendar
     const uni = formData.universityName;
     const course = formData.course || "Master's";
     const baseDate =
@@ -351,7 +475,6 @@ export default function ApplicationCard({
                       Automated Email Alert
                     </div>
 
-                    {/* Option 1: When Application Opens */}
                     <button
                       type="button"
                       disabled={!formData.openingDate}
@@ -369,7 +492,6 @@ export default function ApplicationCard({
                       </span>
                     </button>
 
-                    {/* Option 2: 15 Days Before Deadline */}
                     <button
                       type="button"
                       disabled={!formData.deadline}
@@ -385,7 +507,6 @@ export default function ApplicationCard({
                       <span className="text-[10px] text-gray-400">-15d email</span>
                     </button>
 
-                    {/* Option 3: 10 Days Before Deadline */}
                     <button
                       type="button"
                       disabled={!formData.deadline}
@@ -413,7 +534,6 @@ export default function ApplicationCard({
 
                     <div className="my-1 border-t border-gray-100" />
 
-                    {/* Option 4: Custom Google Calendar Reminder */}
                     <button
                       type="button"
                       onClick={() => handleSelectReminderOption("custom")}
@@ -446,6 +566,26 @@ export default function ApplicationCard({
               )}
             </div>
           )}
+
+          {/* To-Do Checklist Toggle Button & Progress Pill */}
+          <button
+            type="button"
+            onClick={() => setShowChecklist((prev) => !prev)}
+            className={`text-xs font-semibold border px-2.5 py-0.5 rounded-full flex items-center space-x-1.5 transition-all ${
+              allTasksDone
+                ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                : totalTasksCount > 0
+                ? "bg-gray-900 text-white border-gray-900"
+                : "bg-gray-50 text-gray-600 border-gray-200 hover:text-black hover:bg-gray-100"
+            }`}
+          >
+            <ListTodo className="h-3.5 w-3.5" />
+            <span>
+              {totalTasksCount > 0
+                ? `Tasks (${completedTasksCount}/${totalTasksCount})`
+                : "To-Do List"}
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -483,6 +623,113 @@ export default function ApplicationCard({
           )}
         </div>
       </div>
+
+      {/* Collapsible Per-Application To-Do Checklist Panel */}
+      {showChecklist && (
+        <div className="mt-4 p-4 bg-gray-50/80 border border-gray-200 rounded-xl space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center space-x-2">
+              <ListTodo className="h-4 w-4 text-gray-800" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800">
+                Application Checklist — {formData.universityName}
+              </h4>
+              {totalTasksCount > 0 && (
+                <span className="text-xs font-semibold text-gray-500">
+                  ({Math.round((completedTasksCount / totalTasksCount) * 100)}% complete)
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleLoadPresetTasks}
+              className="text-xs font-semibold text-gray-700 hover:text-black bg-white border border-gray-200 hover:border-gray-300 px-2.5 py-1 rounded-lg flex items-center space-x-1 shadow-2xs transition-all"
+            >
+              <Sparkles className="h-3 w-3 text-amber-500" />
+              <span>+ Load German App Presets</span>
+            </button>
+          </div>
+
+          {/* Progress Bar */}
+          {totalTasksCount > 0 && (
+            <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
+              <div
+                className="bg-emerald-600 h-full transition-all duration-300"
+                style={{
+                  width: `${(completedTasksCount / totalTasksCount) * 100}%`,
+                }}
+              />
+            </div>
+          )}
+
+          {/* Task Items */}
+          {checklist.length === 0 ? (
+            <p className="text-xs text-gray-500 py-1">
+              No tasks added yet. Add a custom step below or load the standard German application checklist.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {checklist.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-gray-200/80 hover:border-gray-300 transition-all"
+                >
+                  <label className="flex items-center space-x-2.5 cursor-pointer flex-1">
+                    <input
+                      type="checkbox"
+                      checked={item.completed}
+                      onChange={() => handleToggleTask(item.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black cursor-pointer accent-black"
+                    />
+                    <span
+                      className={`text-xs font-medium transition-all ${
+                        item.completed
+                          ? "line-through text-gray-400"
+                          : "text-gray-800"
+                      }`}
+                    >
+                      {item.text}
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteTask(item.id)}
+                    className="text-gray-400 hover:text-red-500 p-1 transition-colors"
+                    title="Delete task"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Add New Task Input */}
+          <div className="flex items-center space-x-2 pt-1">
+            <input
+              type="text"
+              placeholder="Add a custom task (e.g. Request LOR from Prof. Sharma)..."
+              value={newTaskText}
+              onChange={(e) => setNewTaskText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddTask(e);
+                }
+              }}
+              className="flex-1 p-2 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-black"
+            />
+            <button
+              type="button"
+              onClick={handleAddTask}
+              className="bg-black hover:bg-gray-800 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center space-x-1 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Primary Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
