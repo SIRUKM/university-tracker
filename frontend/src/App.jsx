@@ -8,6 +8,7 @@ import AnalyticsDashboard from './components/tracker/AnalyticsDashboard';
 import { FolderPlus, ArrowUpDown, Download, Upload } from 'lucide-react';
 import GermanyRoadmap from "./components/tracker/GermanyRoadmap";
 import SocialProofBadge from "./components/common/SocialProofBadge";
+import BavarianCalculator from "./components/calculator/BavarianCalculator";
 
 
 const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
@@ -30,6 +31,24 @@ export default function App() {
   const [draftApp, setDraftApp] = useState(null);
   const [sortBy, setSortBy] = useState('priority');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [currentView, setCurrentView] = useState(() => {
+    return window.location.pathname.includes('calculator') ? 'calculator' : 'dashboard';
+  });
+
+  const handleNavigate = (view) => {
+    setCurrentView(view);
+    const targetUrl = view === 'calculator' ? '/grade-calculator' : '/';
+    window.history.pushState({}, '', targetUrl);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentView(window.location.pathname.includes('calculator') ? 'calculator' : 'dashboard');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Background wake-up ping for Render free-tier container on initial page load
   useEffect(() => {
@@ -75,7 +94,7 @@ export default function App() {
     }
   }, [isSignedIn, getToken, userEmail]);
 
-  const handleSelectUniversity = (uniName) => {
+  const handleSelectUniversity = (uniName, websiteUrl = '') => {
     setDraftApp({
       id: crypto.randomUUID(),
       universityName: uniName,
@@ -91,7 +110,7 @@ export default function App() {
       greRequired: 'No',
       applicationFee: '',
       feeStatus: 'Pending',
-      courseLink: '',
+      courseLink: websiteUrl || '',
       remarks: '',
       userEmail: userEmail,
       reminderType: 'NONE',
@@ -463,8 +482,11 @@ export default function App() {
   const filterTabs = ['All', 'Drafting', 'Submitted', 'VPD Pending', 'Admitted', 'Rejected'];
 
   return (
-    <MainLayout>
-      <div className="space-y-8">
+    <MainLayout currentView={currentView} onNavigate={handleNavigate}>
+      {currentView === 'calculator' ? (
+        <BavarianCalculator onNavigateToDashboard={() => handleNavigate('dashboard')} />
+      ) : (
+        <div className="space-y-8">
         
         {/* Social Proof Pill Badge */}
         <div className="flex justify-center w-full">
@@ -608,7 +630,8 @@ export default function App() {
           )}
         </div>
 
-      </div>
+        </div>
+      )}
     </MainLayout>
   );
 }

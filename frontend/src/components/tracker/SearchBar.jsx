@@ -32,8 +32,13 @@ export default function SearchBar({ onAddUniversity }) {
       .slice(0, 5);
   }, [searchQuery, universities]);
 
-  const handleSelect = (uniName) => {
-    onAddUniversity(uniName);
+  const handleSelect = (uniOrName) => {
+    if (typeof uniOrName === 'string') {
+      onAddUniversity(uniOrName, '');
+    } else {
+      const websiteUrl = uniOrName.web_pages?.[0] || '';
+      onAddUniversity(uniOrName.name, websiteUrl);
+    }
     setSearchQuery('');
   };
 
@@ -84,22 +89,32 @@ export default function SearchBar({ onAddUniversity }) {
             </div>
           </button>
 
-          {autocompleteResults.map((uni, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleSelect(uni.name)}
-              className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-center justify-between group transition-colors"
-            >
-              <span className="font-medium text-gray-800 group-hover:text-black text-sm">
-                {uni.name}
-              </span>
-              <div className="flex items-center space-x-1 text-xs text-gray-400 group-hover:text-black font-medium">
-                <span>Add</span>
-                <Plus className="h-4 w-4" />
-              </div>
-            </button>
-          ))}
+          {autocompleteResults.map((uni, idx) => {
+            const domain = uni.domains?.[0] || '';
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSelect(uni)}
+                className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-center justify-between group transition-colors cursor-pointer"
+              >
+                <div className="flex items-center space-x-2 min-w-0 pr-3">
+                  <span className="font-medium text-gray-800 group-hover:text-black text-sm truncate">
+                    {uni.name}
+                  </span>
+                  {domain && (
+                    <span className="text-[11px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-mono shrink-0">
+                      {domain}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-1 text-xs text-gray-400 group-hover:text-black font-medium shrink-0">
+                  <span>Add</span>
+                  <Plus className="h-4 w-4" />
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

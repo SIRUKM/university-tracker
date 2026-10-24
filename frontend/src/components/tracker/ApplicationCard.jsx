@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useAuth } from "@clerk/clerk-react";
+import axios from "axios";
 import {
   Trash2,
   BookOpen,
@@ -25,7 +26,10 @@ import {
   ListTodo,
   Plus,
   Sparkles,
+  Send,
 } from "lucide-react";
+
+const API_BASE_URL = "https://uni-tracker-api.onrender.com/api/applications";
 
 const priorityConfig = {
   1: {
@@ -191,7 +195,9 @@ export default function ApplicationCard({
   onCancelDraft,
 }) {
   const { isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
   const userEmail = user?.primaryEmailAddress?.emailAddress || null;
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
 
   const [ checklist, setChecklist ] = useState(() => getSavedChecklist(app));
   const [ showChecklist, setShowChecklist ] = useState(false);
@@ -428,6 +434,44 @@ export default function ApplicationCard({
     window.open(calUrl, "_blank", "noopener,noreferrer");
   };
 
+  const handleSendTestEmail = async () => {
+    if (!isSignedIn) {
+      alert("Please sign in first to test automated email reminders.");
+      return;
+    }
+    if (isDraft) {
+      alert("Please save this application first before testing email alerts.");
+      return;
+    }
+
+    setTestEmailLoading(true);
+    try {
+      const token = await getToken();
+      const res = await axios.post(
+        `${API_BASE_URL}/${formData.id}/test-reminder`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data === true) {
+        alert(
+          `Test reminder email sent successfully to ${userEmail}!\n\nPlease check your inbox (and spam/promotions folder).`
+        );
+      } else {
+        alert(
+          "The server received the request, but the email could not be sent.\n\nPlease verify that RESEND_API_KEY is configured in your Render backend settings."
+        );
+      }
+    } catch (err) {
+      console.error("Test email error:", err);
+      alert(
+        "Failed to send test email. Please ensure your backend is deployed and RESEND_API_KEY is configured."
+      );
+    } finally {
+      setTestEmailLoading(false);
+      setShowReminderMenu(false);
+    }
+  };
+
   return (
     <div
       className={`bg-white border rounded-xl p-5 shadow-sm transition-all ${
@@ -448,17 +492,18 @@ export default function ApplicationCard({
             </span>
           </div>
 
-          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-900 flex flex-wrap items-center gap-2">
             <span>{formData.universityName}</span>
             {formData.courseLink && (
               <a
                 href={formData.courseLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Open Course Website"
-                className="text-gray-400 hover:text-black transition-colors"
+                title="Open Official University / Course Website"
+                className="inline-flex items-center space-x-1 text-xs font-semibold text-gray-600 hover:text-black bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded-md transition-colors"
               >
-                <ExternalLink className="h-4 w-4" />
+                <span>Website</span>
+                <ExternalLink className="h-3 w-3" />
               </a>
             )}
             {isDraft && (
@@ -552,13 +597,26 @@ export default function ApplicationCard({
                     </button>
 
                     {activeReminderLabel && (
-                      <button
-                        type="button"
-                        onClick={() => handleSelectReminderOption("none")}
-                        className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 font-medium transition-colors"
-                      >
-                        Turn off email reminder
-                      </button>
+                      <>
+                        {isSignedIn && !isDraft && (
+                          <button
+                            type="button"
+                            onClick={handleSendTestEmail}
+                            disabled={testEmailLoading}
+                            className="w-full text-left px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 font-semibold transition-colors flex items-center justify-between cursor-pointer"
+                          >
+                            <span>{testEmailLoading ? "Sending test..." : "Send test email now"}</span>
+                            <Send className="h-3 w-3" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleSelectReminderOption("none")}
+                          className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 font-medium transition-colors"
+                        >
+                          Turn off email reminder
+                        </button>
+                      </>
                     )}
 
                     <div className="my-1 border-t border-gray-100" />
@@ -1067,9 +1125,25 @@ export default function ApplicationCard({
           </div>
 
           <div className="space-y-1 sm:col-span-2">
-            <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              <LinkIcon className="h-3.5 w-3.5 mr-1" /> Course Link / Portal URL
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-1">
+              <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <LinkIcon className="h-3.5 w-3.5 mr-1" /> Course Link / Portal URL
+              </label>
+
+              <a
+                href={`https://www.google.com/search?q=${encodeURIComponent(
+                  `${formData.universityName} ${formData.course || "Master's"} admission requirements curriculum`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-1 text-[11px] text-gray-500 hover:text-black font-semibold hover:underline"
+                title="Search course page on Google"
+              >
+                <span>Find Course on Google</span>
+                <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            </div>
+
             <input
               type="url"
               placeholder="https://uni-target.de/course"

@@ -23,7 +23,7 @@ public class ReminderService {
     @Value("${RESEND_API_KEY:}")
     private String resendApiKey;
 
-    @Value("${RESEND_FROM_EMAIL:UniTracker <reminders@unitracker.live>}")
+    @Value("${RESEND_FROM_EMAIL:UniTracker <onboarding@resend.dev>}")
     private String fromEmail;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -32,6 +32,7 @@ public class ReminderService {
     @Scheduled(cron = "0 0 8 * * *")
     public int processDailyReminders() {
         if (resendApiKey == null || resendApiKey.isBlank()) {
+            System.out.println("Skipping daily reminders: RESEND_API_KEY is not configured.");
             return 0;
         }
 
@@ -57,25 +58,32 @@ public class ReminderService {
             String subject = "";
             String headline = "";
 
-            if ("OPENING".equals(app.getReminderType()) && today.equals(app.getOpeningDate())) {
-                shouldSend = true;
-                subject = "Applications Open Today: " + app.getUniversityName();
-                headline = "Applications open today (<strong>" + app.getOpeningDate() + "</strong>) for <strong>"
-                        + app.getUniversityName() + "</strong> — " + app.getCourse() + ".";
-            } else if ("15_DAYS".equals(app.getReminderType()) && app.getDeadline() != null
-                    && today.equals(app.getDeadline().minusDays(15))) {
-                shouldSend = true;
-                subject = "15 Days Left to Apply: " + app.getUniversityName();
-                headline = "You have <strong>15 days left</strong> until the application deadline (<strong>"
-                        + app.getDeadline() + "</strong>) for <strong>" + app.getUniversityName()
-                        + "</strong> (" + app.getCourse() + ").";
-            } else if ("10_DAYS".equals(app.getReminderType()) && app.getDeadline() != null
-                    && today.equals(app.getDeadline().minusDays(10))) {
-                shouldSend = true;
-                subject = "Urgent — 10 Days Left: " + app.getUniversityName();
-                headline = "Only <strong>10 days remaining</strong> before the deadline (<strong>"
-                        + app.getDeadline() + "</strong>) for <strong>" + app.getUniversityName()
-                        + "</strong> (" + app.getCourse() + ").";
+            if ("OPENING".equalsIgnoreCase(app.getReminderType()) && app.getOpeningDate() != null) {
+                if (!today.isBefore(app.getOpeningDate())) {
+                    shouldSend = true;
+                    subject = "Applications Open: " + app.getUniversityName();
+                    headline = "Applications are now open for <strong>" + app.getUniversityName()
+                            + "</strong> (" + (app.getCourse() != null ? app.getCourse() : "Master's")
+                            + "). Opening date: <strong>" + app.getOpeningDate() + "</strong>.";
+                }
+            } else if ("15_DAYS".equalsIgnoreCase(app.getReminderType()) && app.getDeadline() != null) {
+                LocalDate triggerDate = app.getDeadline().minusDays(15);
+                if (!today.isBefore(triggerDate) && !today.isAfter(app.getDeadline())) {
+                    shouldSend = true;
+                    subject = "15 Days Left to Apply: " + app.getUniversityName();
+                    headline = "You have <strong>15 days or less</strong> remaining until the application deadline (<strong>"
+                            + app.getDeadline() + "</strong>) for <strong>" + app.getUniversityName()
+                            + "</strong> (" + (app.getCourse() != null ? app.getCourse() : "Master's") + ").";
+                }
+            } else if ("10_DAYS".equalsIgnoreCase(app.getReminderType()) && app.getDeadline() != null) {
+                LocalDate triggerDate = app.getDeadline().minusDays(10);
+                if (!today.isBefore(triggerDate) && !today.isAfter(app.getDeadline())) {
+                    shouldSend = true;
+                    subject = "Urgent — 10 Days Left: " + app.getUniversityName();
+                    headline = "Only <strong>10 days or less remaining</strong> before the deadline (<strong>"
+                            + app.getDeadline() + "</strong>) for <strong>" + app.getUniversityName()
+                            + "</strong> (" + (app.getCourse() != null ? app.getCourse() : "Master's") + ").";
+                }
             }
 
             if (shouldSend && sendEmail(app.getUserEmail(), subject, headline, app)) {
@@ -87,9 +95,15 @@ public class ReminderService {
         return sentCount;
     }
 
-    // Sends an immediate confirmation email when a user sets a reminder preset
+    // Sends an immediate confirmation or test email when a user sets a reminder preset
     public boolean sendConfirmationOrTestEmail(Application app) {
-        if (resendApiKey == null || resendApiKey.isBlank() || app.getUserEmail() == null) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            System.err.println("Cannot send reminder: RESEND_API_KEY environment variable is not configured.");
+            return false;
+        }
+
+        if (app.getUserEmail() == null || app.getUserEmail().isBlank()) {
+            System.err.println("Cannot send reminder: user email is missing on application " + app.getId());
             return false;
         }
 
@@ -100,9 +114,10 @@ public class ReminderService {
             default -> "for your upcoming deadline";
         };
 
+        String course = (app.getCourse() != null && !app.getCourse().isBlank()) ? app.getCourse() : "Master's Program";
         String subject = "Reminder Confirmed: " + app.getUniversityName();
         String headline = "Your automated email alert is active for <strong>" + app.getUniversityName()
-                + "</strong> (" + app.getCourse() + "). We will email you <strong>" + presetLabel + "</strong>.";
+                + "</strong> (" + course + "). We will email you <strong>" + presetLabel + "</strong>.";
 
         return sendEmail(app.getUserEmail(), subject, headline, app);
     }
@@ -122,15 +137,24 @@ public class ReminderService {
                     ? app.getCourseLink()
                     : "https://unitracker.live";
 
-            String html = "<div style='font-family:sans-serif;max-width:540px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px;'>"
-                    + "<h2 style='margin-top:0;color:#111827;'>UniTracker Admissions Alert</h2>"
-                    + "<p style='color:#374151;font-size:15px;line-height:1.6;'>" + headline + "</p>"
-                    + "<div style='background:#f9fafb;padding:12px 16px;border-radius:8px;margin:16px 0;font-size:13px;color:#4b5563;'>"
-                    + "<div><strong>Portal:</strong> " + (app.getPortal() != null ? app.getPortal() : "Direct Portal") + "</div>"
+            String courseName = (app.getCourse() != null && !app.getCourse().isBlank())
+                    ? app.getCourse()
+                    : "Master's Program";
+
+            String html = "<div style='font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif;max-width:540px;margin:auto;padding:28px;border:1px solid #e5e7eb;border-radius:16px;background:#ffffff;'>"
+                    + "<div style='display:inline-block;padding:4px 10px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:9999px;font-size:11px;font-weight:700;color:#065f46;margin-bottom:12px;'>UniTracker Alert</div>"
+                    + "<h2 style='margin:0 0 12px 0;color:#111827;font-size:20px;font-weight:700;'>Admissions Reminder</h2>"
+                    + "<p style='color:#374151;font-size:14px;line-height:1.6;margin:0 0 16px 0;'>" + headline + "</p>"
+                    + "<div style='background:#f9fafb;padding:16px;border-radius:12px;margin:0 0 20px 0;font-size:13px;color:#4b5563;border:1px solid #f3f4f6;'>"
+                    + "<div style='margin-bottom:6px;'><strong>University:</strong> " + app.getUniversityName() + "</div>"
+                    + "<div style='margin-bottom:6px;'><strong>Course:</strong> " + courseName + "</div>"
+                    + "<div style='margin-bottom:6px;'><strong>Portal:</strong> " + (app.getPortal() != null ? app.getPortal() : "Direct Portal") + "</div>"
                     + "<div><strong>Deadline:</strong> " + (app.getDeadline() != null ? app.getDeadline() : "Not set") + "</div>"
                     + "</div>"
-                    + "<a href='https://unitracker.live' style='display:inline-block;margin-right:10px;padding:10px 18px;background:#000;color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;'>Open UniTracker</a>"
-                    + "<a href='" + courseUrl + "' style='display:inline-block;padding:10px 18px;background:#f3f4f6;color:#111827;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;'>University Portal</a>"
+                    + "<div style='display:flex;gap:10px;'>"
+                    + "<a href='https://unitracker.live' style='display:inline-block;padding:10px 18px;background:#000000;color:#ffffff;text-decoration:none;border-radius:10px;font-size:13px;font-weight:600;'>Open UniTracker</a>"
+                    + "<a href='" + courseUrl + "' style='display:inline-block;padding:10px 18px;background:#f3f4f6;color:#111827;text-decoration:none;border-radius:10px;font-size:13px;font-weight:600;margin-left:8px;'>Course Website</a>"
+                    + "</div>"
                     + "</div>";
 
             String jsonBody = String.format(
@@ -149,8 +173,17 @@ public class ReminderService {
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.statusCode() >= 200 && response.statusCode() < 300;
+            boolean success = response.statusCode() >= 200 && response.statusCode() < 300;
+
+            if (!success) {
+                System.err.println("Resend API Email Failed (Status " + response.statusCode() + "): " + response.body());
+            } else {
+                System.out.println("Reminder Email Sent Successfully to: " + toEmail + " (" + subject + ")");
+            }
+
+            return success;
         } catch (Exception e) {
+            System.err.println("Exception sending email: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
