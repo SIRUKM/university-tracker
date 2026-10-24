@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- PWA Web App Manifest & Mobile Capabilities -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="UniTracker" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
     <!-- Primary SEO Title & Meta Tags -->
     <title>UniTracker — Germany Master's Application Tracker & Admissions Roadmap</title>
     <meta
@@ -70,5 +78,14 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.log('SW registration error:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

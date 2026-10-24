@@ -5,17 +5,20 @@ import MainLayout from './components/layout/MainLayout';
 import SearchBar from './components/tracker/SearchBar';
 import ApplicationCard from './components/tracker/ApplicationCard';
 import AnalyticsDashboard from './components/tracker/AnalyticsDashboard';
-import { FolderPlus, ArrowUpDown, Download, Upload } from 'lucide-react';
+import { FolderPlus, ArrowUpDown, Download, Upload, Share2, Snowflake, Sun } from 'lucide-react';
 import GermanyRoadmap from "./components/tracker/GermanyRoadmap";
 import SocialProofBadge from "./components/common/SocialProofBadge";
 import BavarianCalculator from "./components/calculator/BavarianCalculator";
+import ShareShortlistModal from "./components/tracker/ShareShortlistModal";
 
 
 const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
 const GUEST_STORAGE_KEY = 'unitracker_guest_data';
+const INTAKE_STORAGE_KEY = 'unitracker_intake_map';
 
 const normalizePayload = (data, email) => ({
   ...data,
+  intake: (data.intake || 'Winter').toLowerCase().includes('summer') ? 'Summer' : 'Winter',
   userEmail: email || data.userEmail || null,
   openingDate: data.openingDate || null,
   dateApplied: data.dateApplied || null,
@@ -31,6 +34,8 @@ export default function App() {
   const [draftApp, setDraftApp] = useState(null);
   const [sortBy, setSortBy] = useState('priority');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [intakeFilter, setIntakeFilter] = useState('All');
+  const [showShareModal, setShowShareModal] = useState(false);
   const [currentView, setCurrentView] = useState(() => {
     return window.location.pathname.includes('calculator') ? 'calculator' : 'dashboard';
   });
@@ -85,7 +90,17 @@ export default function App() {
           }
 
           const response = await axios.get(API_BASE_URL, { headers });
-          setApplications(response.data);
+          const rawIntake = localStorage.getItem(INTAKE_STORAGE_KEY);
+          const intakeMap = rawIntake ? JSON.parse(rawIntake) : {};
+          const enhancedApps = (response.data || []).map((app) => {
+            const savedIntake = intakeMap[app.id] || intakeMap[`${(app.universityName || "").trim().toLowerCase()}__${(app.course || "").trim().toLowerCase()}`];
+            const resolved = app.intake || savedIntake || "Winter";
+            return {
+              ...app,
+              intake: resolved.toLowerCase().includes("summer") ? "Summer" : "Winter",
+            };
+          });
+          setApplications(enhancedApps);
         } catch (err) {
           console.error("Error fetching data:", err);
         }
@@ -100,6 +115,7 @@ export default function App() {
       universityName: uniName,
       priority: '1',
       course: '',
+      intake: 'Winter',
       status: 'Drafting',
       openingDate: '',
       deadline: '',
@@ -120,9 +136,18 @@ export default function App() {
 
   const saveDraft = async (savedData) => {
     const payload = normalizePayload(savedData, userEmail);
+    const chosenIntake = (payload.intake || 'Winter').toLowerCase().includes('summer') ? 'Summer' : 'Winter';
+
+    try {
+      const raw = localStorage.getItem(INTAKE_STORAGE_KEY);
+      const map = raw ? JSON.parse(raw) : {};
+      map[payload.id] = chosenIntake;
+      map[`${(payload.universityName || "").trim().toLowerCase()}__${(payload.course || "").trim().toLowerCase()}`] = chosenIntake;
+      localStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(map));
+    } catch {}
 
     if (!isSignedIn) {
-      const newApps = [payload, ...applications];
+      const newApps = [{ ...payload, intake: chosenIntake }, ...applications];
       setApplications(newApps);
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(newApps));
       setDraftApp(null);
@@ -132,7 +157,12 @@ export default function App() {
         const response = await axios.post(API_BASE_URL, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setApplications((prev) => [response.data, ...prev]);
+        const merged = {
+          ...payload,
+          ...response.data,
+          intake: chosenIntake,
+        };
+        setApplications((prev) => [merged, ...prev]);
         setDraftApp(null);
       } catch (err) {
         console.error("Error saving to DB:", err);
@@ -148,9 +178,18 @@ export default function App() {
 
   const updateExistingApplication = async (updatedData) => {
     const payload = normalizePayload(updatedData, userEmail);
+    const updatedIntake = (payload.intake || 'Winter').toLowerCase().includes('summer') ? 'Summer' : 'Winter';
+
+    try {
+      const raw = localStorage.getItem(INTAKE_STORAGE_KEY);
+      const map = raw ? JSON.parse(raw) : {};
+      map[payload.id] = updatedIntake;
+      map[`${(payload.universityName || "").trim().toLowerCase()}__${(payload.course || "").trim().toLowerCase()}`] = updatedIntake;
+      localStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(map));
+    } catch {}
 
     if (!isSignedIn) {
-      const updatedApps = applications.map((app) => (app.id === payload.id ? payload : app));
+      const updatedApps = applications.map((app) => (app.id === payload.id ? { ...payload, intake: updatedIntake } : app));
       setApplications(updatedApps);
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updatedApps));
     } else {
@@ -159,8 +198,13 @@ export default function App() {
         const response = await axios.put(`${API_BASE_URL}/${payload.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        const merged = {
+          ...payload,
+          ...response.data,
+          intake: updatedIntake,
+        };
         setApplications((prev) =>
-          prev.map((app) => (app.id === payload.id ? response.data : app))
+          prev.map((app) => (app.id === payload.id ? merged : app))
         );
       } catch (err) {
         console.error("Error updating DB:", err);
@@ -192,7 +236,7 @@ export default function App() {
     if (applications.length === 0) return;
 
     const headers = [
-      'University Name', 'Course', 'Status', 'Priority', 'Opening Date', 
+      'University Name', 'Course', 'Semester', 'Status', 'Priority', 'Opening Date', 
       'Deadline', 'Date Applied', 'Fee Status', 'Application Fee', 
       'Portal', 'VPD Required', 'VPD Status', 'GRE Requirement', 'Course Link', 'Remarks'
     ];
@@ -200,6 +244,7 @@ export default function App() {
     const rows = applications.map(app => [
       `"${app.universityName || ''}"`,
       `"${app.course || ''}"`,
+      `"${(app.intake || 'Winter').toLowerCase().includes('summer') ? 'Summer' : 'Winter'}"`,
       `"${app.status || 'Drafting'}"`,
       `"${app.priority || '1'}"`,
       `"${app.openingDate || ''}"`,
@@ -316,6 +361,7 @@ export default function App() {
 
         const idxUni = findColIndex(["university name", "university"]);
         const idxCourse = findColIndex(["course"]);
+        const idxIntake = findColIndex(["intake", "semester", "term", "session"]);
         const idxPriority = findColIndex(["priority"]);
         const idxAppliedYesNo = findColIndex(["applied"]);
         const idxStatus = findColIndex(["status"]);
@@ -360,6 +406,7 @@ export default function App() {
           importedMap.set(uniqueKey, {
             universityName: uniName.trim(),
             course: courseName.trim(),
+            intake: idxIntake !== -1 && data[idxIntake] ? data[idxIntake].trim() : "Winter 2026/27",
             status: derivedStatus,
             priority: csvPriority,
             openingDate: idxOpening !== -1 ? parseDateToISO(data[idxOpening]) : null,
@@ -456,6 +503,18 @@ export default function App() {
 
   const filteredAndSortedApplications = useMemo(() => {
     const filtered = applications.filter((app) => {
+      // Intake Filter (Winter vs Summer)
+      if (intakeFilter !== 'All') {
+        const isSummer = (app.intake || '').toLowerCase().includes('summer');
+        if (intakeFilter === 'Summer' && !isSummer) {
+          return false;
+        }
+        if (intakeFilter === 'Winter' && isSummer) {
+          return false;
+        }
+      }
+
+      // Status Filter
       if (statusFilter === 'All') return true;
       if (statusFilter === 'VPD Pending') {
         return app.vpdRequired === 'Yes' && app.vpdStatus !== 'Received';
@@ -477,7 +536,7 @@ export default function App() {
       }
       return 0;
     });
-  }, [applications, sortBy, statusFilter]);
+  }, [applications, sortBy, statusFilter, intakeFilter]);
 
   const filterTabs = ['All', 'Drafting', 'Submitted', 'VPD Pending', 'Admitted', 'Rejected'];
 
@@ -527,6 +586,18 @@ export default function App() {
 
             {applications.length > 0 && (
               <button
+                type="button"
+                onClick={() => setShowShareModal(true)}
+                className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                title="Share your shortlist to WhatsApp, Telegram, or export as PDF"
+              >
+                <Share2 className="h-4 w-4" />
+                <span>Share Shortlist</span>
+              </button>
+            )}
+
+            {applications.length > 0 && (
+              <button
                 onClick={exportToCSV}
                 className="flex items-center space-x-2 bg-black hover:bg-gray-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm"
               >
@@ -547,27 +618,62 @@ export default function App() {
 
         {/* Filter Pills & Sorting Toolbar */}
         {applications.length > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-gray-200 px-4 py-3 rounded-xl shadow-sm">
-            {/* Status Filter Pills */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              {filterTabs.map((tab) => (
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white border border-gray-200 p-3 sm:px-4 sm:py-3 rounded-xl shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Semester Quick Filter Pills */}
+              <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-lg border border-gray-200">
                 <button
-                  key={tab}
                   type="button"
-                  onClick={() => setStatusFilter(tab)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    statusFilter === tab
-                      ? 'bg-black text-white'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  onClick={() => setIntakeFilter('All')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    intakeFilter === 'All' ? 'bg-white text-black shadow-2xs' : 'text-gray-600 hover:text-black'
                   }`}
                 >
-                  {tab}
+                  All Semesters
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setIntakeFilter('Winter')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all flex items-center space-x-1 cursor-pointer ${
+                    intakeFilter === 'Winter' ? 'bg-white text-sky-700 shadow-2xs font-bold' : 'text-gray-600 hover:text-black'
+                  }`}
+                >
+                  <Snowflake className="h-3 w-3 text-sky-500" />
+                  <span>Winter</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIntakeFilter('Summer')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all flex items-center space-x-1 cursor-pointer ${
+                    intakeFilter === 'Summer' ? 'bg-white text-amber-700 shadow-2xs font-bold' : 'text-gray-600 hover:text-black'
+                  }`}
+                >
+                  <Sun className="h-3 w-3 text-amber-500" />
+                  <span>Summer</span>
+                </button>
+              </div>
+
+              {/* Status Filter Pills */}
+              <div className="flex flex-wrap items-center gap-1">
+                {filterTabs.map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setStatusFilter(tab)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                      statusFilter === tab
+                        ? 'bg-black text-white'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Sort Dropdown */}
-            <div className="flex items-center space-x-2 shrink-0">
+            <div className="flex items-center space-x-2 shrink-0 self-end lg:self-center">
               <ArrowUpDown className="h-4 w-4 text-gray-500" />
               <span className="text-xs font-semibold text-gray-600">Sort:</span>
               <select
@@ -632,6 +738,13 @@ export default function App() {
 
         </div>
       )}
+
+      {/* Share Shortlist Modal */}
+      <ShareShortlistModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        applications={applications}
+      />
     </MainLayout>
   );
 }

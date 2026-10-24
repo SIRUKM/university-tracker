@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useUser, useAuth } from "@clerk/clerk-react";
-import axios from "axios";
+import { useUser } from "@clerk/clerk-react";
 import {
   Trash2,
   BookOpen,
@@ -26,10 +25,9 @@ import {
   ListTodo,
   Plus,
   Sparkles,
-  Send,
+  Snowflake,
+  Sun,
 } from "lucide-react";
-
-const API_BASE_URL = "https://uni-tracker-api.onrender.com/api/applications";
 
 const priorityConfig = {
   1: {
@@ -57,6 +55,7 @@ const reminderLabels = {
 
 const REMINDER_STORAGE_KEY = "unitracker_reminders_map";
 const CHECKLIST_STORAGE_KEY = "unitracker_checklists_map";
+const INTAKE_STORAGE_KEY = "unitracker_intake_map";
 
 const DEFAULT_GERMAN_TASKS = [
   "Tailor course-specific Letter of Motivation (SOP)",
@@ -68,6 +67,42 @@ const DEFAULT_GERMAN_TASKS = [
 
 const getAppCompositeKey = (app) =>
   `${(app?.universityName || "").trim().toLowerCase()}__${(app?.course || "").trim().toLowerCase()}`;
+
+const getSavedIntake = (app) => {
+  if (app?.intake) {
+    return (app.intake || "").toLowerCase().includes("summer")
+      ? "Summer"
+      : "Winter";
+  }
+  try {
+    const raw = localStorage.getItem(INTAKE_STORAGE_KEY);
+    if (!raw) return "Winter";
+    const map = JSON.parse(raw);
+    const keyById = app?.id;
+    const keyByName = getAppCompositeKey(app);
+    const val = map[keyById] || map[keyByName];
+    return val && val.toLowerCase().includes("summer") ? "Summer" : "Winter";
+  } catch {
+    return "Winter";
+  }
+};
+
+const saveIntakeLocally = (app, intakeVal) => {
+  try {
+    const raw = localStorage.getItem(INTAKE_STORAGE_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    const keyById = app?.id;
+    const keyByName = getAppCompositeKey(app);
+    const normalized = (intakeVal || "").toLowerCase().includes("summer")
+      ? "Summer"
+      : "Winter";
+    if (keyById) map[keyById] = normalized;
+    map[keyByName] = normalized;
+    localStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    // ignore
+  }
+};
 
 const getSavedReminder = (app) => {
   if (app?.reminderType && app.reminderType !== "NONE") {
@@ -178,6 +213,22 @@ const getDeadlineBadge = (deadlineStr) => {
   };
 };
 
+const getIntakeBadge = (intakeStr) => {
+  const isSummer = (intakeStr || "").toLowerCase().includes("summer");
+  if (isSummer) {
+    return {
+      text: "Summer Semester",
+      classes: "bg-amber-100/90 text-amber-800 border-amber-300 font-semibold",
+      icon: "summer",
+    };
+  }
+  return {
+    text: "Winter Semester",
+    classes: "bg-sky-100/90 text-sky-800 border-sky-300 font-semibold",
+    icon: "winter",
+  };
+};
+
 const getShiftedCalendarDate = (dateStr, daysOffset = 0) => {
   const date = new Date(`${dateStr}T00:00:00`);
   date.setDate(date.getDate() + daysOffset);
@@ -195,18 +246,17 @@ export default function ApplicationCard({
   onCancelDraft,
 }) {
   const { isSignedIn, user } = useUser();
-  const { getToken } = useAuth();
   const userEmail = user?.primaryEmailAddress?.emailAddress || null;
-  const [testEmailLoading, setTestEmailLoading] = useState(false);
 
-  const [ checklist, setChecklist ] = useState(() => getSavedChecklist(app));
-  const [ showChecklist, setShowChecklist ] = useState(false);
-  const [ newTaskText, setNewTaskText ] = useState("");
-  const [ showPresets, setShowPresets ] = useState(false);
-  const [ dismissedPresets, setDismissedPresets ] = useState([]);
+  const [checklist, setChecklist] = useState(() => getSavedChecklist(app));
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [newTaskText, setNewTaskText] = useState("");
+  const [showPresets, setShowPresets] = useState(false);
+  const [dismissedPresets, setDismissedPresets] = useState([]);
 
   const [formData, setFormData] = useState(() => ({
     ...app,
+    intake: getSavedIntake(app),
     reminderType: getSavedReminder(app),
     checklistJson: JSON.stringify(getSavedChecklist(app)),
   }));
@@ -221,6 +271,7 @@ export default function ApplicationCard({
     setChecklist(savedList);
     setFormData({
       ...app,
+      intake: getSavedIntake(app),
       reminderType: getSavedReminder(app),
       checklistJson: JSON.stringify(savedList),
     });
@@ -240,14 +291,19 @@ export default function ApplicationCard({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const currentPriority = priorityConfig[formData.priority] || priorityConfig["1"];
+  const currentPriority =
+    priorityConfig[formData.priority] || priorityConfig["1"];
   const deadlineBadge = getDeadlineBadge(formData.deadline);
-  const hasUnsavedChanges = isDraft || JSON.stringify(formData) !== JSON.stringify(app);
+  const intakeBadge = getIntakeBadge(formData.intake);
+  const isSummer = (formData.intake || "Winter").toLowerCase().includes("summer");
+  const hasUnsavedChanges =
+    isDraft || JSON.stringify(formData) !== JSON.stringify(app);
   const activeReminderLabel = reminderLabels[formData.reminderType];
 
   const completedTasksCount = checklist.filter((t) => t.completed).length;
   const totalTasksCount = checklist.length;
-  const allTasksDone = totalTasksCount > 0 && completedTasksCount === totalTasksCount;
+  const allTasksDone =
+    totalTasksCount > 0 && completedTasksCount === totalTasksCount;
 
   const syncChecklistChanges = async (updatedList) => {
     setChecklist(updatedList);
@@ -289,7 +345,7 @@ export default function ApplicationCard({
 
   const handleToggleTask = (taskId) => {
     const nextList = checklist.map((item) =>
-      item.id === taskId ? { ...item, completed: !item.completed } : item
+      item.id === taskId ? { ...item, completed: !item.completed } : item,
     );
     syncChecklistChanges(nextList);
   };
@@ -301,7 +357,7 @@ export default function ApplicationCard({
 
   const handleAddSinglePreset = (presetText) => {
     const isAlreadyPresent = checklist.some(
-      (t) => t.text.trim().toLowerCase() === presetText.trim().toLowerCase()
+      (t) => t.text.trim().toLowerCase() === presetText.trim().toLowerCase(),
     );
     if (isAlreadyPresent) return;
     const nextList = [
@@ -317,12 +373,12 @@ export default function ApplicationCard({
 
   const handleAddAllPresets = () => {
     const existingTexts = new Set(
-      checklist.map((t) => t.text.trim().toLowerCase())
+      checklist.map((t) => t.text.trim().toLowerCase()),
     );
     const available = DEFAULT_GERMAN_TASKS.filter(
       (preset) =>
         !dismissedPresets.includes(preset) &&
-        !existingTexts.has(preset.trim().toLowerCase())
+        !existingTexts.has(preset.trim().toLowerCase()),
     );
     const additions = available.map((preset) => ({
       id: crypto.randomUUID(),
@@ -338,12 +394,82 @@ export default function ApplicationCard({
     setDismissedPresets((prev) => [...prev, presetText]);
   };
 
+  const debounceTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const performSave = async (dataToSave) => {
+    if (isDraft) return;
+    if (!dataToSave.course || !dataToSave.course.trim()) {
+      return;
+    }
+    setSaveState("saving");
+    try {
+      saveReminderLocally(dataToSave, dataToSave.reminderType);
+      saveChecklistLocally(dataToSave, checklist);
+      saveIntakeLocally(dataToSave, dataToSave.intake || "Winter");
+      await onSave({
+        ...dataToSave,
+        intake: (dataToSave.intake || "Winter").toLowerCase().includes("summer")
+          ? "Summer"
+          : "Winter",
+        course: dataToSave.course.trim(),
+        checklistJson: JSON.stringify(checklist),
+        userEmail: userEmail || dataToSave.userEmail || null,
+      });
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2200);
+    } catch {
+      setSaveState("idle");
+    }
+  };
+
   const handleChange = (field, value) => {
     if (field === "course" && value.trim()) {
       setCourseError(false);
     }
-    setSaveState("idle");
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const updated = { ...formData, [field]: value };
+    setFormData(updated);
+
+    if (isDraft) return;
+
+    // Immediate auto-save for priority, status, semester, portal, feeStatus, vpd, dates
+    const immediateFields = [
+      "priority",
+      "status",
+      "intake",
+      "portal",
+      "feeStatus",
+      "vpdRequired",
+      "vpdStatus",
+      "greRequired",
+      "openingDate",
+      "deadline",
+      "dateApplied",
+    ];
+
+    if (immediateFields.includes(field)) {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      performSave(updated);
+    } else {
+      // Debounce typing inputs (course, remarks, link, fee)
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        performSave(updated);
+      }, 650);
+    }
+  };
+
+  const handleBlur = () => {
+    if (isDraft) return;
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    performSave(formData);
   };
 
   const handleSaveClick = async () => {
@@ -356,8 +482,12 @@ export default function ApplicationCard({
     try {
       saveReminderLocally(formData, formData.reminderType);
       saveChecklistLocally(formData, checklist);
+      saveIntakeLocally(formData, formData.intake || "Winter");
       await onSave({
         ...formData,
+        intake: (formData.intake || "Winter").toLowerCase().includes("summer")
+          ? "Summer"
+          : "Winter",
         course: formData.course.trim(),
         checklistJson: JSON.stringify(checklist),
         userEmail: userEmail || formData.userEmail || null,
@@ -376,7 +506,9 @@ export default function ApplicationCard({
 
     if (optionType !== "custom") {
       if (!isSignedIn && optionType !== "none") {
-        alert("Please sign in at the top right to receive automated email reminders in your inbox.");
+        alert(
+          "Please sign in at the top right to receive automated email reminders in your inbox.",
+        );
         return;
       }
 
@@ -384,10 +516,10 @@ export default function ApplicationCard({
         optionType === "opening"
           ? "OPENING"
           : optionType === "15days"
-          ? "15_DAYS"
-          : optionType === "10days"
-          ? "10_DAYS"
-          : "NONE";
+            ? "15_DAYS"
+            : optionType === "10days"
+              ? "10_DAYS"
+              : "NONE";
 
       const updated = {
         ...formData,
@@ -421,76 +553,64 @@ export default function ApplicationCard({
       formData.openingDate ||
       new Date().toISOString().split("T")[0];
     const targetDateCompact = getShiftedCalendarDate(baseDate, 0);
-    const title = encodeURIComponent(`Application Reminder: ${uni} (${course})`);
+    const title = encodeURIComponent(
+      `Application Reminder: ${uni} (${course})`,
+    );
     const details = encodeURIComponent(
       `University: ${uni}\nCourse: ${course}\nApplication Deadline: ${
         formData.deadline || "Not set"
       }\nOpening Date: ${formData.openingDate || "Not set"}\nPortal: ${
         formData.portal || "Direct Portal"
-      }\nLink: ${formData.courseLink || "https://unitracker.live"}`
+      }\nLink: ${formData.courseLink || "https://unitracker.live"}`,
     );
 
     const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${targetDateCompact}/${targetDateCompact}&details=${details}`;
     window.open(calUrl, "_blank", "noopener,noreferrer");
   };
 
-  const handleSendTestEmail = async () => {
-    if (!isSignedIn) {
-      alert("Please sign in first to test automated email reminders.");
-      return;
-    }
-    if (isDraft) {
-      alert("Please save this application first before testing email alerts.");
-      return;
-    }
-
-    setTestEmailLoading(true);
-    try {
-      const token = await getToken();
-      const res = await axios.post(
-        `${API_BASE_URL}/${formData.id}/test-reminder`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.data === true) {
-        alert(
-          `Test reminder email sent successfully to ${userEmail}!\n\nPlease check your inbox (and spam/promotions folder).`
-        );
-      } else {
-        alert(
-          "The server received the request, but the email could not be sent.\n\nPlease verify that RESEND_API_KEY is configured in your Render backend settings."
-        );
-      }
-    } catch (err) {
-      console.error("Test email error:", err);
-      alert(
-        "Failed to send test email. Please ensure your backend is deployed and RESEND_API_KEY is configured."
-      );
-    } finally {
-      setTestEmailLoading(false);
-      setShowReminderMenu(false);
-    }
-  };
-
   return (
     <div
-      className={`bg-white border rounded-xl p-5 shadow-sm transition-all ${
+      className={`border rounded-xl p-5 shadow-sm transition-all duration-300 ease-in-out ${
         isDraft
-          ? "border-black ring-2 ring-black/5 shadow-md bg-gray-50/30"
-          : "border-gray-200 hover:shadow-md"
+          ? isSummer
+            ? "border-amber-400 ring-2 ring-amber-400/20 shadow-md bg-amber-50/50"
+            : "border-sky-400 ring-2 ring-sky-400/20 shadow-md bg-sky-50/50"
+          : isSummer
+            ? "bg-amber-50/40 hover:bg-amber-50/60 border-amber-200/90 hover:border-amber-300 shadow-xs hover:shadow-md"
+            : "bg-sky-50/40 hover:bg-sky-50/60 border-sky-200/90 hover:border-sky-300 shadow-xs hover:shadow-md"
       }`}
     >
       {/* Card Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-gray-100">
+      <div className={`flex flex-wrap items-center justify-between gap-3 pb-4 border-b transition-colors duration-300 ${
+        isSummer ? "border-amber-200/70" : "border-sky-200/70"
+      }`}>
         <div className="flex flex-wrap items-center gap-2.5">
           <div
             className={`flex items-center space-x-1.5 px-3 py-1 rounded-md border text-xs font-bold ${currentPriority.badge}`}
           >
-            <Flag className={`h-3.5 w-3.5 fill-current ${currentPriority.flag}`} />
+            <Flag
+              className={`h-3.5 w-3.5 fill-current ${currentPriority.flag}`}
+            />
             <span>
               P{formData.priority || "1"} — {currentPriority.label}
             </span>
           </div>
+
+          {/* Intake Badge (WiSe / SoSe) */}
+          {intakeBadge && (
+            <span
+              className={`px-2.5 py-1 rounded-md border text-xs font-semibold flex items-center space-x-1 ${intakeBadge.classes}`}
+            >
+              {intakeBadge.icon === "winter" ? (
+                <Snowflake className="h-3.5 w-3.5 mr-0.5 text-sky-500" />
+              ) : intakeBadge.icon === "summer" ? (
+                <Sun className="h-3.5 w-3.5 mr-0.5 text-amber-500" />
+              ) : (
+                <Calendar className="h-3.5 w-3.5 mr-0.5 text-gray-500" />
+              )}
+              <span>{intakeBadge.text}</span>
+            </span>
+          )}
 
           <h3 className="text-lg font-bold text-gray-900 flex flex-wrap items-center gap-2">
             <span>{formData.universityName}</span>
@@ -507,7 +627,9 @@ export default function ApplicationCard({
               </a>
             )}
             {isDraft && (
-              <span className="text-xs font-normal text-gray-500">(New Draft)</span>
+              <span className="text-xs font-normal text-gray-500">
+                (New Draft)
+              </span>
             )}
           </h3>
 
@@ -523,7 +645,10 @@ export default function ApplicationCard({
 
           {/* Remind Me Button + Static Adjacent Reminder Badge */}
           {(formData.deadline || formData.openingDate) && (
-            <div className="flex flex-wrap items-center gap-2" ref={reminderMenuRef}>
+            <div
+              className="flex flex-wrap items-center gap-2"
+              ref={reminderMenuRef}
+            >
               <div className="relative">
                 <button
                   type="button"
@@ -562,7 +687,9 @@ export default function ApplicationCard({
                         <span>When application opens</span>
                       </span>
                       <span className="text-[10px] text-gray-400">
-                        {formData.openingDate ? formData.openingDate : "No date"}
+                        {formData.openingDate
+                          ? formData.openingDate
+                          : "No date"}
                       </span>
                     </button>
 
@@ -578,7 +705,9 @@ export default function ApplicationCard({
                         )}
                         <span>15 days before deadline</span>
                       </span>
-                      <span className="text-[10px] text-gray-400">-15d email</span>
+                      <span className="text-[10px] text-gray-400">
+                        -15d email
+                      </span>
                     </button>
 
                     <button
@@ -593,30 +722,19 @@ export default function ApplicationCard({
                         )}
                         <span>10 days before deadline</span>
                       </span>
-                      <span className="text-[10px] text-gray-400">-10d email</span>
+                      <span className="text-[10px] text-gray-400">
+                        -10d email
+                      </span>
                     </button>
 
                     {activeReminderLabel && (
-                      <>
-                        {isSignedIn && !isDraft && (
-                          <button
-                            type="button"
-                            onClick={handleSendTestEmail}
-                            disabled={testEmailLoading}
-                            className="w-full text-left px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 font-semibold transition-colors flex items-center justify-between cursor-pointer"
-                          >
-                            <span>{testEmailLoading ? "Sending test..." : "Send test email now"}</span>
-                            <Send className="h-3 w-3" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleSelectReminderOption("none")}
-                          className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 font-medium transition-colors"
-                        >
-                          Turn off email reminder
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectReminderOption("none")}
+                        className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 font-medium transition-colors"
+                      >
+                        Turn off email reminder
+                      </button>
                     )}
 
                     <div className="my-1 border-t border-gray-100" />
@@ -662,8 +780,8 @@ export default function ApplicationCard({
               allTasksDone
                 ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                 : totalTasksCount > 0
-                ? "bg-gray-900 text-white border-gray-900"
-                : "bg-gray-50 text-gray-600 border-gray-200 hover:text-black hover:bg-gray-100"
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:text-black hover:bg-gray-100"
             }`}
           >
             <ListTodo className="h-3.5 w-3.5" />
@@ -722,7 +840,8 @@ export default function ApplicationCard({
               </h4>
               {totalTasksCount > 0 && (
                 <span className="text-xs font-semibold text-gray-500">
-                  ({Math.round((completedTasksCount / totalTasksCount) * 100)}% complete)
+                  ({Math.round((completedTasksCount / totalTasksCount) * 100)}%
+                  complete)
                 </span>
               )}
             </div>
@@ -737,7 +856,9 @@ export default function ApplicationCard({
               }`}
             >
               <Sparkles className="h-3 w-3 text-amber-500" />
-              <span>{showPresets ? "Hide Suggestions" : "German App Presets"}</span>
+              <span>
+                {showPresets ? "Hide Suggestions" : "German App Presets"}
+              </span>
               {showPresets ? (
                 <ChevronUp className="h-3 w-3 text-amber-800" />
               ) : (
@@ -765,8 +886,10 @@ export default function ApplicationCard({
                     (p) =>
                       !dismissedPresets.includes(p) &&
                       !checklist.some(
-                        (t) => t.text.trim().toLowerCase() === p.trim().toLowerCase()
-                      )
+                        (t) =>
+                          t.text.trim().toLowerCase() ===
+                          p.trim().toLowerCase(),
+                      ),
                   ) && (
                     <button
                       type="button"
@@ -787,7 +910,8 @@ export default function ApplicationCard({
                 </div>
               </div>
 
-              {DEFAULT_GERMAN_TASKS.filter((p) => !dismissedPresets.includes(p)).length === 0 ? (
+              {DEFAULT_GERMAN_TASKS.filter((p) => !dismissedPresets.includes(p))
+                .length === 0 ? (
                 <div className="flex items-center justify-between text-xs text-amber-800 py-1">
                   <span>All suggestions have been dismissed.</span>
                   <button
@@ -800,9 +924,13 @@ export default function ApplicationCard({
                 </div>
               ) : (
                 <ul className="space-y-1.5">
-                  {DEFAULT_GERMAN_TASKS.filter((p) => !dismissedPresets.includes(p)).map((preset) => {
+                  {DEFAULT_GERMAN_TASKS.filter(
+                    (p) => !dismissedPresets.includes(p),
+                  ).map((preset) => {
                     const isAdded = checklist.some(
-                      (t) => t.text.trim().toLowerCase() === preset.trim().toLowerCase()
+                      (t) =>
+                        t.text.trim().toLowerCase() ===
+                        preset.trim().toLowerCase(),
                     );
                     return (
                       <li
@@ -860,7 +988,8 @@ export default function ApplicationCard({
           {/* Task Items */}
           {checklist.length === 0 ? (
             <p className="text-xs text-gray-500 py-1">
-              No tasks added yet. Add a custom step below or open German App Presets above.
+              No tasks added yet. Add a custom step below or open German App
+              Presets above.
             </p>
           ) : (
             <ul className="space-y-1.5">
@@ -936,7 +1065,7 @@ export default function ApplicationCard({
       )}
 
       {/* Primary Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
         <div className="space-y-1">
           <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <BookOpen className="h-3.5 w-3.5 mr-1" /> Course Name{" "}
@@ -948,6 +1077,7 @@ export default function ApplicationCard({
             placeholder="e.g. M.Sc. Data Science"
             value={formData.course || ""}
             onChange={(e) => handleChange("course", e.target.value)}
+            onBlur={handleBlur}
             className={`w-full p-2.5 bg-white border rounded-lg focus:outline-none focus:ring-2 text-sm ${
               courseError
                 ? "border-red-500 focus:ring-red-500"
@@ -955,8 +1085,29 @@ export default function ApplicationCard({
             }`}
           />
           {courseError && (
-            <p className="text-xs text-red-500 font-medium">Course name is required.</p>
+            <p className="text-xs text-red-500 font-medium">
+              Course name is required.
+            </p>
           )}
+        </div>
+
+        <div className="space-y-1">
+          <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            {isSummer ? (
+              <Sun className="h-3.5 w-3.5 mr-1 text-amber-500" />
+            ) : (
+              <Snowflake className="h-3.5 w-3.5 mr-1 text-sky-500" />
+            )}
+            Semester
+          </label>
+          <select
+            value={isSummer ? "Summer" : "Winter"}
+            onChange={(e) => handleChange("intake", e.target.value)}
+            className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm font-medium"
+          >
+            <option value="Winter">❄️ Winter Semester</option>
+            <option value="Summer">☀️ Summer Semester</option>
+          </select>
         </div>
 
         <div className="space-y-1">
@@ -993,7 +1144,9 @@ export default function ApplicationCard({
 
       {/* Expanded Extended Fields */}
       {isExpanded && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 mt-4 border-t border-gray-100 bg-gray-50/50 p-4 rounded-xl">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 mt-4 border-t p-4 rounded-xl transition-colors duration-300 ${
+          isSummer ? "bg-amber-100/35 border-amber-200/60" : "bg-sky-100/35 border-sky-200/60"
+        }`}>
           <div className="space-y-1">
             <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
               <Calendar className="h-3.5 w-3.5 mr-1" /> Opening Date
@@ -1053,6 +1206,7 @@ export default function ApplicationCard({
               placeholder="e.g. 75 EUR"
               value={formData.applicationFee || ""}
               onChange={(e) => handleChange("applicationFee", e.target.value)}
+              onBlur={handleBlur}
               className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm"
             />
           </div>
@@ -1098,8 +1252,8 @@ export default function ApplicationCard({
                   formData.vpdStatus === "Received"
                     ? "bg-green-50 text-green-800 border-green-300"
                     : formData.vpdStatus === "Submitted"
-                    ? "bg-blue-50 text-blue-800 border-blue-300"
-                    : "bg-amber-50 text-amber-800 border-amber-300"
+                      ? "bg-blue-50 text-blue-800 border-blue-300"
+                      : "bg-amber-50 text-amber-800 border-amber-300"
                 }`}
               >
                 <option value="Pending">VPD Pending</option>
@@ -1127,12 +1281,13 @@ export default function ApplicationCard({
           <div className="space-y-1 sm:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-1">
               <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                <LinkIcon className="h-3.5 w-3.5 mr-1" /> Course Link / Portal URL
+                <LinkIcon className="h-3.5 w-3.5 mr-1" /> Course Link / Portal
+                URL
               </label>
 
               <a
                 href={`https://www.google.com/search?q=${encodeURIComponent(
-                  `${formData.universityName} ${formData.course || "Master's"} admission requirements curriculum`
+                  `${formData.universityName} ${formData.course || "Master's"} admission requirements curriculum`,
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -1149,6 +1304,7 @@ export default function ApplicationCard({
               placeholder="https://uni-target.de/course"
               value={formData.courseLink || ""}
               onChange={(e) => handleChange("courseLink", e.target.value)}
+              onBlur={handleBlur}
               className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm"
             />
           </div>
@@ -1162,54 +1318,85 @@ export default function ApplicationCard({
               placeholder="e.g. Requires German B2"
               value={formData.remarks || ""}
               onChange={(e) => handleChange("remarks", e.target.value)}
+              onBlur={handleBlur}
               className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm"
             />
           </div>
         </div>
       )}
 
-      {/* Save / Update Button */}
-      <div className="pt-4 mt-4 border-t border-gray-200 flex items-center justify-between">
-        <div>
-          {!isDraft && hasUnsavedChanges && saveState === "idle" && (
-            <span className="text-xs text-amber-600 font-medium">
-              • Unsaved changes
-            </span>
+      {/* Save Status / Draft Actions Footer */}
+      <div className={`pt-4 mt-4 border-t flex items-center justify-between transition-colors duration-300 ${
+        isSummer ? "border-amber-200/70" : "border-sky-200/70"
+      }`}>
+        <div className="flex items-center space-x-2">
+          {!isDraft ? (
+            <div className="flex items-center space-x-1.5 text-xs">
+              {saveState === "saving" ? (
+                <span className="flex items-center space-x-1.5 text-gray-500 font-medium">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+                  <span>Saving changes...</span>
+                </span>
+              ) : saveState === "saved" ? (
+                <span className="flex items-center space-x-1.5 text-emerald-700 font-semibold animate-fadeIn">
+                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Saved</span>
+                </span>
+              ) : hasUnsavedChanges ? (
+                <span className="text-xs text-amber-600 font-medium">
+                  • Saving...
+                </span>
+              ) : (
+                <span className="text-[11px] text-gray-400 font-medium">
+                  Auto-saved
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-gray-500 font-medium">New draft entry</span>
           )}
         </div>
+
         <div className="flex space-x-3">
           {isDraft && (
             <button
               type="button"
               onClick={onCancelDraft}
-              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors"
+              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
             >
               Cancel
             </button>
           )}
-          <button
-            type="button"
-            disabled={saveState === "saving"}
-            onClick={handleSaveClick}
-            className={`flex items-center space-x-2 text-white text-sm font-semibold px-6 py-2 rounded-xl transition-all shadow-sm ${
-              saveState === "saved"
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-black hover:bg-gray-800"
-            }`}
-          >
-            {saveState === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saveState === "saved" && <Check className="h-4 w-4" />}
-            {isDraft && saveState === "idle" && <PlusCircle className="h-4 w-4" />}
-            <span>
-              {saveState === "saving"
-                ? "Saving..."
-                : saveState === "saved"
-                ? "Saved"
-                : isDraft
-                ? "Add Application to Tracker"
-                : "Update"}
-            </span>
-          </button>
+          {isDraft ? (
+            <button
+              type="button"
+              disabled={saveState === "saving"}
+              onClick={handleSaveClick}
+              className="flex items-center space-x-2 bg-black hover:bg-gray-800 text-white text-sm font-semibold px-6 py-2 rounded-xl transition-all shadow-sm cursor-pointer"
+            >
+              {saveState === "saving" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <PlusCircle className="h-4 w-4" />
+              )}
+              <span>
+                {saveState === "saving"
+                  ? "Adding..."
+                  : "Add Application to Tracker"}
+              </span>
+            </button>
+          ) : (
+            hasUnsavedChanges && (
+              <button
+                type="button"
+                disabled={saveState === "saving"}
+                onClick={handleSaveClick}
+                className="text-xs font-semibold px-3 py-1.5 bg-black hover:bg-gray-800 text-white rounded-lg transition-colors cursor-pointer"
+              >
+                {saveState === "saving" ? "Saving..." : "Save now"}
+              </button>
+            )
+          )}
         </div>
       </div>
     </div>

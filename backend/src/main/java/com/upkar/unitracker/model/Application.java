@@ -28,6 +28,7 @@ public class Application {
 
     private String status;
     private String priority;
+    private String intake;
     
     private LocalDate openingDate;
     private LocalDate dateApplied;
