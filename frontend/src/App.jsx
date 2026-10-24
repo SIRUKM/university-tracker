@@ -7,6 +7,7 @@ import ApplicationCard from './components/tracker/ApplicationCard';
 import AnalyticsDashboard from './components/tracker/AnalyticsDashboard';
 import { FolderPlus, ArrowUpDown, Download, Upload } from 'lucide-react';
 import GermanyRoadmap from "./components/tracker/GermanyRoadmap";
+import SocialProofBadge from "./components/common/SocialProofBadge";
 
 
 const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
@@ -465,6 +466,11 @@ export default function App() {
     <MainLayout>
       <div className="space-y-8">
         
+        {/* Social Proof Pill Badge */}
+        <div className="flex justify-center w-full">
+          <SocialProofBadge count="2,500+" label="German university applicants" />
+        </div>
+
         {/* Title & Counter Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>

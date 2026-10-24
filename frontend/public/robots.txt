@@ -1,0 +1,6 @@
+# Allow all web crawlers to index UniTracker
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://unitracker.live/sitemap.xml
