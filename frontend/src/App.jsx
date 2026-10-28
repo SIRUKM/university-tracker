@@ -5,25 +5,40 @@ import MainLayout from './components/layout/MainLayout';
 import SearchBar from './components/tracker/SearchBar';
 import ApplicationCard from './components/tracker/ApplicationCard';
 import AnalyticsDashboard from './components/tracker/AnalyticsDashboard';
-import { FolderPlus, ArrowUpDown, Download, Upload, Share2, Snowflake, Sun } from 'lucide-react';
+import { FolderPlus, ArrowUpDown, Download, Upload, Share2, Snowflake, Sun, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import GermanyRoadmap from "./components/tracker/GermanyRoadmap";
+import JourneyDashboardWidget from "./components/tracker/JourneyDashboardWidget";
 import SocialProofBadge from "./components/common/SocialProofBadge";
 import BavarianCalculator from "./components/calculator/BavarianCalculator";
 import ShareShortlistModal from "./components/tracker/ShareShortlistModal";
+import StudentDeals from "./components/deals/StudentDeals";
+import AdmittedCelebrationModal from "./components/common/AdmittedCelebrationModal";
+import ImportMappingModal from "./components/tracker/ImportMappingModal";
 
 
 const API_BASE_URL = 'https://uni-tracker-api.onrender.com/api/applications';
+const HEALTH_URL = 'https://uni-tracker-api.onrender.com/api/health';
 const GUEST_STORAGE_KEY = 'unitracker_guest_data';
 const INTAKE_STORAGE_KEY = 'unitracker_intake_map';
 
-const normalizePayload = (data, email) => ({
-  ...data,
-  intake: (data.intake || 'Winter').toLowerCase().includes('summer') ? 'Summer' : 'Winter',
-  userEmail: email || data.userEmail || null,
-  openingDate: data.openingDate || null,
-  dateApplied: data.dateApplied || null,
-  deadline: data.deadline || null,
-});
+const normalizePayload = (data, email) => {
+  let resolvedIntake = null;
+  if (data.intake) {
+    const s = String(data.intake).toLowerCase();
+    if (s.includes('summer')) resolvedIntake = 'Summer';
+    else if (s.includes('winter')) resolvedIntake = 'Winter';
+    else resolvedIntake = data.intake;
+  }
+  return {
+    ...data,
+    intake: resolvedIntake,
+    userEmail: email || data.userEmail || null,
+    openingDate: data.openingDate || null,
+    dateApplied: data.dateApplied || null,
+    deadline: data.deadline || null,
+  };
+};
 
 export default function App() {
   const { isSignedIn, getToken } = useAuth();
@@ -36,20 +51,47 @@ export default function App() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [intakeFilter, setIntakeFilter] = useState('All');
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [pendingImportData, setPendingImportData] = useState(null);
+  const [celebrationApp, setCelebrationApp] = useState(null);
+  const [targetJourneyPhase, setTargetJourneyPhase] = useState("p1");
   const [currentView, setCurrentView] = useState(() => {
-    return window.location.pathname.includes('calculator') ? 'calculator' : 'dashboard';
+    if (window.location.pathname.includes('journey') || window.location.pathname.includes('roadmap')) return 'journey';
+    if (window.location.pathname.includes('calculator')) return 'calculator';
+    if (window.location.pathname.includes('student-deals') || window.location.pathname.includes('deals')) return 'deals';
+    return 'dashboard';
   });
 
-  const handleNavigate = (view) => {
+  const handleNavigate = (view, phaseId = null) => {
+    if (phaseId) setTargetJourneyPhase(phaseId);
     setCurrentView(view);
-    const targetUrl = view === 'calculator' ? '/grade-calculator' : '/';
+    let targetUrl = '/';
+    if (view === 'journey') {
+      targetUrl = phaseId ? `/my-journey?phase=${phaseId}` : '/my-journey';
+    } else if (view === 'calculator') {
+      targetUrl = '/grade-calculator';
+    } else if (view === 'deals') {
+      targetUrl = '/student-deals';
+    }
     window.history.pushState({}, '', targetUrl);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleOpenJourney = (phaseId) => {
+    handleNavigate('journey', phaseId);
+  };
+
   useEffect(() => {
     const handlePopState = () => {
-      setCurrentView(window.location.pathname.includes('calculator') ? 'calculator' : 'dashboard');
+      if (window.location.pathname.includes('journey') || window.location.pathname.includes('roadmap')) {
+        setCurrentView('journey');
+      } else if (window.location.pathname.includes('calculator')) {
+        setCurrentView('calculator');
+      } else if (window.location.pathname.includes('student-deals') || window.location.pathname.includes('deals')) {
+        setCurrentView('deals');
+      } else {
+        setCurrentView('dashboard');
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -57,7 +99,7 @@ export default function App() {
 
   // Background wake-up ping for Render free-tier container on initial page load
   useEffect(() => {
-    axios.get(API_BASE_URL).catch(() => {});
+    axios.get(HEALTH_URL).catch(() => {});
   }, []);
 
   // Load data & auto-migrate guest applications upon login
@@ -94,10 +136,18 @@ export default function App() {
           const intakeMap = rawIntake ? JSON.parse(rawIntake) : {};
           const enhancedApps = (response.data || []).map((app) => {
             const savedIntake = intakeMap[app.id] || intakeMap[`${(app.universityName || "").trim().toLowerCase()}__${(app.course || "").trim().toLowerCase()}`];
-            const resolved = app.intake || savedIntake || "Winter";
+            const rawVal = app.intake || savedIntake || "";
+            let resolved = "";
+            if (rawVal) {
+              resolved = rawVal.toLowerCase().includes("summer")
+                ? "Summer"
+                : rawVal.toLowerCase().includes("winter")
+                ? "Winter"
+                : rawVal;
+            }
             return {
               ...app,
-              intake: resolved.toLowerCase().includes("summer") ? "Summer" : "Winter",
+              intake: resolved,
             };
           });
           setApplications(enhancedApps);
@@ -115,12 +165,12 @@ export default function App() {
       universityName: uniName,
       priority: '1',
       course: '',
-      intake: 'Winter',
+      intake: '',
       status: 'Drafting',
       openingDate: '',
       deadline: '',
       dateApplied: '',
-      portal: 'Direct Portal',
+      portal: '',
       vpdRequired: 'No',
       vpdStatus: 'Pending',
       greRequired: 'No',
@@ -136,15 +186,32 @@ export default function App() {
 
   const saveDraft = async (savedData) => {
     const payload = normalizePayload(savedData, userEmail);
-    const chosenIntake = (payload.intake || 'Winter').toLowerCase().includes('summer') ? 'Summer' : 'Winter';
+    let chosenIntake = '';
+    if (payload.intake) {
+      chosenIntake = payload.intake.toLowerCase().includes('summer')
+        ? 'Summer'
+        : payload.intake.toLowerCase().includes('winter')
+        ? 'Winter'
+        : payload.intake;
+    }
 
     try {
       const raw = localStorage.getItem(INTAKE_STORAGE_KEY);
       const map = raw ? JSON.parse(raw) : {};
-      map[payload.id] = chosenIntake;
-      map[`${(payload.universityName || "").trim().toLowerCase()}__${(payload.course || "").trim().toLowerCase()}`] = chosenIntake;
+      const keyComposite = `${(payload.universityName || "").trim().toLowerCase()}__${(payload.course || "").trim().toLowerCase()}`;
+      if (chosenIntake) {
+        map[payload.id] = chosenIntake;
+        map[keyComposite] = chosenIntake;
+      } else {
+        delete map[payload.id];
+        delete map[keyComposite];
+      }
       localStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(map));
     } catch {}
+
+    if (payload.status === 'Admitted') {
+      setCelebrationApp({ ...payload, intake: chosenIntake });
+    }
 
     if (!isSignedIn) {
       const newApps = [{ ...payload, intake: chosenIntake }, ...applications];
@@ -154,7 +221,7 @@ export default function App() {
     } else {
       try {
         const token = await getToken();
-        const response = await axios.post(API_BASE_URL, payload, {
+        const response = await axios.post(API_BASE_URL, { ...payload, intake: chosenIntake || null }, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const merged = {
@@ -178,15 +245,33 @@ export default function App() {
 
   const updateExistingApplication = async (updatedData) => {
     const payload = normalizePayload(updatedData, userEmail);
-    const updatedIntake = (payload.intake || 'Winter').toLowerCase().includes('summer') ? 'Summer' : 'Winter';
+    let updatedIntake = '';
+    if (payload.intake) {
+      updatedIntake = payload.intake.toLowerCase().includes('summer')
+        ? 'Summer'
+        : payload.intake.toLowerCase().includes('winter')
+        ? 'Winter'
+        : payload.intake;
+    }
 
     try {
       const raw = localStorage.getItem(INTAKE_STORAGE_KEY);
       const map = raw ? JSON.parse(raw) : {};
-      map[payload.id] = updatedIntake;
-      map[`${(payload.universityName || "").trim().toLowerCase()}__${(payload.course || "").trim().toLowerCase()}`] = updatedIntake;
+      const keyComposite = `${(payload.universityName || "").trim().toLowerCase()}__${(payload.course || "").trim().toLowerCase()}`;
+      if (updatedIntake) {
+        map[payload.id] = updatedIntake;
+        map[keyComposite] = updatedIntake;
+      } else {
+        delete map[payload.id];
+        delete map[keyComposite];
+      }
       localStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(map));
     } catch {}
+
+    const prevApp = applications.find((a) => a.id === payload.id);
+    if (payload.status === 'Admitted' && (!prevApp || prevApp.status !== 'Admitted')) {
+      setCelebrationApp({ ...payload, intake: updatedIntake });
+    }
 
     if (!isSignedIn) {
       const updatedApps = applications.map((app) => (app.id === payload.id ? { ...payload, intake: updatedIntake } : app));
@@ -195,7 +280,7 @@ export default function App() {
     } else {
       try {
         const token = await getToken();
-        const response = await axios.put(`${API_BASE_URL}/${payload.id}`, payload, {
+        const response = await axios.put(`${API_BASE_URL}/${payload.id}`, { ...payload, intake: updatedIntake || null }, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const merged = {
@@ -232,8 +317,11 @@ export default function App() {
     }
   };
 
-  const exportToCSV = () => {
-    if (applications.length === 0) return;
+  const exportData = (format = 'xlsx') => {
+    if (applications.length === 0) {
+      alert("No applications to export yet. Add some applications first!");
+      return;
+    }
 
     const headers = [
       'University Name', 'Course', 'Semester', 'Status', 'Priority', 'Opening Date', 
@@ -242,259 +330,351 @@ export default function App() {
     ];
 
     const rows = applications.map(app => [
-      `"${app.universityName || ''}"`,
-      `"${app.course || ''}"`,
-      `"${(app.intake || 'Winter').toLowerCase().includes('summer') ? 'Summer' : 'Winter'}"`,
-      `"${app.status || 'Drafting'}"`,
-      `"${app.priority || '1'}"`,
-      `"${app.openingDate || ''}"`,
-      `"${app.deadline || ''}"`,
-      `"${app.dateApplied || ''}"`,
-      `"${app.feeStatus || 'Pending'}"`,
-      `"${app.applicationFee || ''}"`,
-      `"${app.portal || 'Direct Portal'}"`,
-      `"${app.vpdRequired || 'No'}"`,
-      `"${app.vpdStatus || 'Pending'}"`,
-      `"${app.greRequired || 'No'}"`,
-      `"${app.courseLink || ''}"`,
-      `"${app.remarks || ''}"`
+      app.universityName || '',
+      app.course || '',
+      app.intake ? (app.intake.toLowerCase().includes('summer') ? 'Summer' : 'Winter') : '',
+      app.status || 'Drafting',
+      app.priority || '1',
+      app.openingDate || '',
+      app.deadline || '',
+      app.dateApplied || '',
+      app.feeStatus || '',
+      app.applicationFee || '',
+      app.portal || '',
+      app.vpdRequired || 'No',
+      app.vpdStatus || 'Pending',
+      app.greRequired || 'No',
+      app.courseLink || '',
+      app.remarks || ''
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + 
-      [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const worksheetData = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "university_applications_tracker.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Set professional column widths for Excel
+    ws['!cols'] = [
+      { wch: 32 }, // University Name
+      { wch: 30 }, // Course
+      { wch: 12 }, // Semester
+      { wch: 14 }, // Status
+      { wch: 10 }, // Priority
+      { wch: 14 }, // Opening Date
+      { wch: 14 }, // Deadline
+      { wch: 14 }, // Date Applied
+      { wch: 14 }, // Fee Status
+      { wch: 16 }, // Application Fee
+      { wch: 18 }, // Portal
+      { wch: 14 }, // VPD Required
+      { wch: 14 }, // VPD Status
+      { wch: 16 }, // GRE Requirement
+      { wch: 36 }, // Course Link
+      { wch: 40 }, // Remarks
+    ];
+
+    // Set auto-filter for sorting inside Excel
+    ws['!autofilter'] = { ref: `A1:P${rows.length + 1}` };
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "My Shortlist");
+
+    if (format === 'csv') {
+      XLSX.writeFile(wb, "UniTracker_Germany_Shortlist.csv", { bookType: "csv" });
+    } else {
+      XLSX.writeFile(wb, "UniTracker_Germany_Shortlist.xlsx", { bookType: "xlsx" });
+    }
+    setShowExportMenu(false);
   };
 
-
-   // Universal CSV Import Handler with Duplicate Checking & Upsert (Update if exists)
-  const handleFileUpload = (e) => {
+  // Universal Import Handler accepting both .xlsx / .xls and .csv
+  // Opens interactive column mapping modal so users with ANY header names can import
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const text = event.target.result;
-        const lines = text.split("\n").map((l) => l.trim()).filter((line) => line !== "");
-        if (lines.length < 2) {
-          alert("The CSV file appears to be empty.");
-          return;
-        }
+    try {
+      const data = await file.arrayBuffer();
+      // SheetJS parses binary .xlsx, .xls, and text .csv into a unified workbook
+      const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawLines = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-        const parseRow = (rowStr) => {
-          const res = [];
-          let current = "";
-          let inQuotes = false;
-          for (let i = 0; i < rowStr.length; i++) {
-            const char = rowStr[i];
-            if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === "," && !inQuotes) {
-              res.push(current.trim().replace(/^"|"$/g, ""));
-              current = "";
-            } else {
-              current += char;
-            }
-          }
-          res.push(current.trim().replace(/^"|"$/g, ""));
-          return res;
-        };
+      const nonEmptyRows = (rawLines || []).filter(
+        (row) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== '')
+      );
 
-        const parseDateToISO = (dateStr) => {
-          if (!dateStr || !dateStr.trim()) return null;
-          const clean = dateStr.trim();
-          if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
-
-          const slashMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-          if (slashMatch) {
-            const [, p1, p2, yyyy] = slashMatch;
-            return `${yyyy}-${String(p2).padStart(2, "0")}-${String(p1).padStart(2, "0")}`;
-          }
-
-          try {
-            const parsed = new Date(clean);
-            if (!isNaN(parsed.getTime())) {
-              const yyyy = parsed.getFullYear();
-              const mm = String(parsed.getMonth() + 1).padStart(2, "0");
-              const dd = String(parsed.getDate()).padStart(2, "0");
-              if (yyyy > 2000 && yyyy < 2100) return `${yyyy}-${mm}-${dd}`;
-            }
-          } catch {
-            // fallback
-          }
-          return null;
-        };
-
-        const cleanFee = (feeStr) => {
-          if (!feeStr) return "";
-          const cleaned = String(feeStr).replace(/[^0-9.]/g, "");
-          const val = parseFloat(cleaned);
-          if (isNaN(val) || val === 0) return "";
-          return `${Math.round(val)} EUR`;
-        };
-
-        let headerIndex = -1;
-        let headers = [];
-        for (let i = 0; i < lines.length; i++) {
-          const row = parseRow(lines[i]);
-          if (row.some((cell) => cell.toLowerCase().includes("university name"))) {
-            headerIndex = i;
-            headers = row.map((h) => h.toLowerCase());
-            break;
-          }
-        }
-
-        if (headerIndex === -1) {
-          alert("Could not find 'University Name' header in the CSV file.");
-          return;
-        }
-
-        const findColIndex = (keywords) =>
-          headers.findIndex((h) => keywords.some((k) => h.includes(k)));
-
-        const idxUni = findColIndex(["university name", "university"]);
-        const idxCourse = findColIndex(["course"]);
-        const idxIntake = findColIndex(["intake", "semester", "term", "session"]);
-        const idxPriority = findColIndex(["priority"]);
-        const idxAppliedYesNo = findColIndex(["applied"]);
-        const idxStatus = findColIndex(["status"]);
-        const idxOpening = findColIndex(["opening"]);
-        const idxDeadline = findColIndex(["deadline"]);
-        const idxAppliedDate = findColIndex(["date of application", "date applied"]);
-        const idxPortal = findColIndex(["portal", "uni-assist"]);
-        const idxFeeStatus = findColIndex(["fee paid", "fee status"]);
-        const idxFeeAmount = findColIndex(["amount paid", "application fee", "fee"]);
-        const idxVpd = findColIndex(["vpd"]);
-        const idxGre = findColIndex(["gre"]);
-        const idxLink = findColIndex(["link"]);
-        const idxRemark = findColIndex(["remark"]);
-
-        // 1. Deduplicate rows inside the CSV itself by (University + Course)
-        const importedMap = new Map();
-
-        for (let i = headerIndex + 1; i < lines.length; i++) {
-          const data = parseRow(lines[i]);
-          if (data.length <= idxUni) continue;
-
-          const uniName = data[idxUni];
-          if (!uniName || uniName.toLowerCase().includes("university name")) continue;
-
-          const courseName = idxCourse !== -1 && data[idxCourse] ? data[idxCourse] : "M.Sc. Program";
-          const appliedVal = idxAppliedYesNo !== -1 && data[idxAppliedYesNo] ? data[idxAppliedYesNo].toLowerCase() : "";
-          const statusVal = idxStatus !== -1 && data[idxStatus] ? data[idxStatus] : "";
-          const appliedDateParsed = idxAppliedDate !== -1 ? parseDateToISO(data[idxAppliedDate]) : null;
-
-          let derivedStatus = "Drafting";
-          if (["Submitted", "Admitted", "Rejected", "Drafting"].includes(statusVal)) {
-            derivedStatus = statusVal;
-          } else if (appliedVal.includes("yes") || appliedDateParsed) {
-            derivedStatus = "Submitted";
-          }
-
-          const rawPriority = idxPriority !== -1 && data[idxPriority] ? String(data[idxPriority]).replace(/[^0-9]/g, "") : "1";
-          const csvPriority = ["1", "2", "3"].includes(rawPriority) ? rawPriority : "1";
-
-          const uniqueKey = `${uniName.trim().toLowerCase()}__${courseName.trim().toLowerCase()}`;
-
-          importedMap.set(uniqueKey, {
-            universityName: uniName.trim(),
-            course: courseName.trim(),
-            intake: idxIntake !== -1 && data[idxIntake] ? data[idxIntake].trim() : "Winter 2026/27",
-            status: derivedStatus,
-            priority: csvPriority,
-            openingDate: idxOpening !== -1 ? parseDateToISO(data[idxOpening]) : null,
-            deadline: idxDeadline !== -1 ? parseDateToISO(data[idxDeadline]) : null,
-            dateApplied: appliedDateParsed,
-            feeStatus: idxFeeStatus !== -1 && data[idxFeeStatus] ? data[idxFeeStatus] : "Pending",
-            applicationFee: idxFeeAmount !== -1 ? cleanFee(data[idxFeeAmount]) : "",
-            portal: idxPortal !== -1 && data[idxPortal]?.toLowerCase().includes("uni-assist") ? "Uni-Assist" : "Direct Portal",
-            vpdRequired: idxVpd !== -1 && data[idxVpd]?.toLowerCase().includes("yes") ? "Yes" : "No",
-            vpdStatus: "Pending",
-            greRequired: idxGre !== -1 && data[idxGre] ? data[idxGre] : "No",
-            courseLink: idxLink !== -1 && data[idxLink] ? data[idxLink] : "",
-            remarks: idxRemark !== -1 && data[idxRemark] ? data[idxRemark] : "",
-          });
-        }
-
-        // 2. Also deduplicate existing state and merge latest CSV values
-        const mergedMap = new Map();
-        for (const existingApp of applications) {
-          const key = `${(existingApp.universityName || "").trim().toLowerCase()}__${(existingApp.course || "").trim().toLowerCase()}`;
-          mergedMap.set(key, existingApp);
-        }
-
-        let addedCount = 0;
-        let updatedCount = 0;
-        const toCreate = [];
-        const toUpdate = [];
-
-        for (const [key, csvItem] of importedMap.entries()) {
-          if (mergedMap.has(key)) {
-            const existing = mergedMap.get(key);
-            const updatedObj = {
-              ...existing,
-              ...csvItem,
-              id: existing.id,
-            };
-            mergedMap.set(key, updatedObj);
-            toUpdate.push(updatedObj);
-            updatedCount++;
-          } else {
-            const newObj = {
-              ...csvItem,
-              id: crypto.randomUUID(),
-              reminderType: "NONE",
-              reminderSent: false,
-            };
-            mergedMap.set(key, newObj);
-            toCreate.push(newObj);
-            addedCount++;
-          }
-        }
-
-        const finalAppsList = Array.from(mergedMap.values());
-
-        // 3. Instant UI state update (Zero lag!)
-        setApplications(finalAppsList);
-        if (!isSignedIn) {
-          localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(finalAppsList));
-        }
-
-        alert(`CSV Import Complete: ${addedCount} added, ${updatedCount} updated.`);
-
-        // 4. Non-blocking background sync with backend
-        if (isSignedIn) {
-          (async () => {
-            try {
-              const token = await getToken();
-              const headersAuth = { Authorization: `Bearer ${token}` };
-              await Promise.all([
-                ...toCreate.map((item) =>
-                  axios.post(API_BASE_URL, normalizePayload(item), { headers: headersAuth }).catch(() => {})
-                ),
-                ...toUpdate.map((item) =>
-                  axios.put(`${API_BASE_URL}/${item.id}`, normalizePayload(item), { headers: headersAuth }).catch(() => {})
-                ),
-              ]);
-            } catch (syncErr) {
-              console.error("Background sync error:", syncErr);
-            }
-          })();
-        }
-      } catch (err) {
-        console.error("Error parsing CSV:", err);
-        alert("Failed to import CSV file.");
+      if (nonEmptyRows.length < 2) {
+        alert("The selected file appears to be empty or does not have enough rows.");
+        return;
       }
+
+      // Fuzzy scan top 10 rows to detect the true header row
+      const candidateKeywords = [
+        'university', 'uni', 'college', 'hochschule', 'institution', 'school',
+        'course', 'program', 'degree', 'major', 'msc', 'study',
+        'deadline', 'status', 'intake', 'semester', 'portal', 'fee',
+        'vpd', 'gre', 'link', 'remark', 'notes', 'priority'
+      ];
+
+      let headerIndex = -1;
+      let maxKeywordMatches = 0;
+
+      for (let i = 0; i < Math.min(nonEmptyRows.length, 10); i++) {
+        const row = nonEmptyRows[i];
+        let matches = 0;
+        row.forEach((cell) => {
+          const text = String(cell || '').toLowerCase().trim();
+          if (candidateKeywords.some((kw) => text.includes(kw))) {
+            matches++;
+          }
+        });
+        if (matches > maxKeywordMatches) {
+          maxKeywordMatches = matches;
+          headerIndex = i;
+        }
+      }
+
+      // If no candidate keywords match (custom names), default safely to the first row (0)
+      if (headerIndex === -1 || maxKeywordMatches === 0) {
+        headerIndex = 0;
+      }
+
+      const headers = nonEmptyRows[headerIndex].map((cell, idx) => {
+        const str = String(cell ?? '').trim();
+        return str || `Column ${idx + 1}`;
+      });
+
+      const rawRows = nonEmptyRows.slice(headerIndex + 1).filter(
+        (row) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== '')
+      );
+
+      if (rawRows.length === 0) {
+        alert("No data rows found below the header row in this file.");
+        return;
+      }
+
+      // Open interactive column matcher modal
+      setPendingImportData({
+        fileName: file.name,
+        headers,
+        rawRows,
+      });
+    } catch (err) {
+      console.error("Error reading spreadsheet:", err);
+      alert("Failed to parse file. Please verify it is a valid .xlsx, .xls, or .csv document.");
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  // Execute import after user confirms column mapping in the modal
+  const executeImportWithMapping = async (columnMapping) => {
+    if (!pendingImportData) return;
+    const { rawRows } = pendingImportData;
+
+    const parseDateToISO = (val) => {
+      if (!val) return null;
+      if (val instanceof Date && !isNaN(val.getTime())) {
+        const yyyy = val.getFullYear();
+        const mm = String(val.getMonth() + 1).padStart(2, "0");
+        const dd = String(val.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      const clean = String(val).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+
+      const slashMatch = clean.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+      if (slashMatch) {
+        const [, p1, p2, yyyy] = slashMatch;
+        return `${yyyy}-${String(p2).padStart(2, "0")}-${String(p1).padStart(2, "0")}`;
+      }
+
+      try {
+        const parsed = new Date(clean);
+        if (!isNaN(parsed.getTime())) {
+          const yyyy = parsed.getFullYear();
+          const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+          const dd = String(parsed.getDate()).padStart(2, "0");
+          if (yyyy > 2000 && yyyy < 2100) return `${yyyy}-${mm}-${dd}`;
+        }
+      } catch {}
+      return null;
     };
-    reader.readAsText(file);
-    e.target.value = null;
+
+    const cleanFee = (feeStr) => {
+      if (!feeStr) return "";
+      const cleaned = String(feeStr).replace(/[^0-9.]/g, "");
+      const val = parseFloat(cleaned);
+      if (isNaN(val) || val === 0) return "";
+      return `${Math.round(val)} EUR`;
+    };
+
+    const getColVal = (row, fieldKey) => {
+      const colIdx = columnMapping[fieldKey];
+      if (colIdx === undefined || colIdx === -1 || colIdx >= row.length) return "";
+      const v = row[colIdx];
+      return v !== undefined && v !== null ? String(v).trim() : "";
+    };
+
+    const getColRaw = (row, fieldKey) => {
+      const colIdx = columnMapping[fieldKey];
+      if (colIdx === undefined || colIdx === -1 || colIdx >= row.length) return null;
+      return row[colIdx];
+    };
+
+    const importedMap = new Map();
+
+    for (const row of rawRows) {
+      if (!Array.isArray(row)) continue;
+      const uniName = getColVal(row, "universityName");
+      if (!uniName || uniName.toLowerCase() === "university name") continue;
+
+      const courseName = getColVal(row, "course") || "M.Sc. Program";
+      const rawSemester = getColVal(row, "intake");
+      let resolvedIntake = "";
+      if (rawSemester) {
+        const s = rawSemester.toLowerCase();
+        if (s.includes("summer")) resolvedIntake = "Summer";
+        else if (s.includes("winter")) resolvedIntake = "Winter";
+        else resolvedIntake = rawSemester;
+      }
+
+      const rawStatus = getColVal(row, "status");
+      let derivedStatus = "Drafting";
+      if (["Submitted", "Admitted", "Rejected", "Drafting"].includes(rawStatus)) {
+        derivedStatus = rawStatus;
+      } else if (rawStatus.toLowerCase().includes("admit") || rawStatus.toLowerCase().includes("accept")) {
+        derivedStatus = "Admitted";
+      } else if (rawStatus.toLowerCase().includes("reject")) {
+        derivedStatus = "Rejected";
+      } else if (rawStatus.toLowerCase().includes("submit") || rawStatus.toLowerCase().includes("applied")) {
+        derivedStatus = "Submitted";
+      }
+
+      const rawPriority = getColVal(row, "priority").replace(/[^0-9]/g, "");
+      const priority = ["1", "2", "3"].includes(rawPriority) ? rawPriority : "1";
+
+      const deadlineVal = parseDateToISO(getColRaw(row, "deadline"));
+      const openingVal = parseDateToISO(getColRaw(row, "openingDate"));
+      const dateAppliedVal = parseDateToISO(getColRaw(row, "dateApplied"));
+
+      if (dateAppliedVal && derivedStatus === "Drafting") {
+        derivedStatus = "Submitted";
+      }
+
+      const rawPortal = getColVal(row, "portal");
+      let portal = "";
+      if (rawPortal) {
+        if (rawPortal.toLowerCase().includes("assist")) {
+          portal = "Uni-Assist";
+        } else if (rawPortal.toLowerCase().includes("direct")) {
+          portal = "Direct Portal";
+        } else {
+          portal = rawPortal;
+        }
+      }
+
+      const rawFee = cleanFee(getColVal(row, "applicationFee"));
+      const rawFeeStatus = getColVal(row, "feeStatus");
+      let feeStatus = "Pending";
+      if (rawFeeStatus.toLowerCase().includes("paid")) feeStatus = "Paid";
+      else if (rawFeeStatus.toLowerCase().includes("waiv")) feeStatus = "Waived";
+
+      const rawVpd = getColVal(row, "vpdRequired");
+      const vpdRequired = rawVpd.toLowerCase().includes("yes") || rawVpd.toLowerCase().includes("true") ? "Yes" : "No";
+
+      const rawGre = getColVal(row, "greRequired");
+      const greRequired = rawGre || "No";
+
+      const courseLink = getColVal(row, "courseLink");
+      const remarks = getColVal(row, "remarks");
+
+      const uniqueKey = `${uniName.toLowerCase()}__${courseName.toLowerCase()}`;
+
+      importedMap.set(uniqueKey, {
+        universityName: uniName,
+        course: courseName,
+        intake: resolvedIntake,
+        status: derivedStatus,
+        priority,
+        openingDate: openingVal,
+        deadline: deadlineVal,
+        dateApplied: dateAppliedVal,
+        portal,
+        applicationFee: rawFee,
+        feeStatus,
+        vpdRequired,
+        vpdStatus: "Pending",
+        greRequired,
+        courseLink,
+        remarks,
+      });
+    }
+
+    const mergedMap = new Map();
+    for (const existingApp of applications) {
+      const key = `${(existingApp.universityName || "").trim().toLowerCase()}__${(existingApp.course || "").trim().toLowerCase()}`;
+      mergedMap.set(key, existingApp);
+    }
+
+    let addedCount = 0;
+    let updatedCount = 0;
+    const toCreate = [];
+    const toUpdate = [];
+
+    for (const [key, item] of importedMap.entries()) {
+      if (mergedMap.has(key)) {
+        const existing = mergedMap.get(key);
+        const updatedObj = {
+          ...existing,
+          ...item,
+          id: existing.id,
+        };
+        mergedMap.set(key, updatedObj);
+        toUpdate.push(updatedObj);
+        updatedCount++;
+      } else {
+        const newObj = {
+          ...item,
+          id: crypto.randomUUID(),
+          reminderType: "NONE",
+          reminderSent: false,
+        };
+        mergedMap.set(key, newObj);
+        toCreate.push(newObj);
+        addedCount++;
+      }
+    }
+
+    const finalAppsList = Array.from(mergedMap.values());
+    setApplications(finalAppsList);
+
+    if (!isSignedIn) {
+      localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(finalAppsList));
+    }
+
+    setPendingImportData(null);
+    alert(`Import Successful!\n• ${addedCount} new application(s) added\n• ${updatedCount} existing application(s) updated`);
+
+    // Non-blocking background sync with backend if signed in
+    if (isSignedIn) {
+      (async () => {
+        try {
+          const token = await getToken();
+          const headersAuth = { Authorization: `Bearer ${token}` };
+          await Promise.all([
+            ...toCreate.map((item) =>
+              axios.post(API_BASE_URL, normalizePayload(item, userEmail), { headers: headersAuth }).catch(() => {})
+            ),
+            ...toUpdate.map((item) =>
+              axios.put(`${API_BASE_URL}/${item.id}`, normalizePayload(item, userEmail), { headers: headersAuth }).catch(() => {})
+            ),
+          ]);
+        } catch (syncErr) {
+          console.error("Background sync error after import:", syncErr);
+        }
+      })();
+    }
   };
 
 
@@ -505,11 +685,13 @@ export default function App() {
     const filtered = applications.filter((app) => {
       // Intake Filter (Winter vs Summer)
       if (intakeFilter !== 'All') {
-        const isSummer = (app.intake || '').toLowerCase().includes('summer');
+        const s = (app.intake || '').toLowerCase();
+        const isSummer = s.includes('summer');
+        const isWinter = s.includes('winter');
         if (intakeFilter === 'Summer' && !isSummer) {
           return false;
         }
-        if (intakeFilter === 'Winter' && isSummer) {
+        if (intakeFilter === 'Winter' && !isWinter) {
           return false;
         }
       }
@@ -544,6 +726,15 @@ export default function App() {
     <MainLayout currentView={currentView} onNavigate={handleNavigate}>
       {currentView === 'calculator' ? (
         <BavarianCalculator onNavigateToDashboard={() => handleNavigate('dashboard')} />
+      ) : currentView === 'deals' ? (
+        <StudentDeals onNavigateToDashboard={() => handleNavigate('dashboard')} />
+      ) : currentView === 'journey' ? (
+        <GermanyRoadmap
+          isStandalonePage={true}
+          initialPhaseId={targetJourneyPhase}
+          onNavigateToDashboard={() => handleNavigate('dashboard')}
+          onNavigateToDeals={() => handleNavigate('deals')}
+        />
       ) : (
         <div className="space-y-8">
         
@@ -566,29 +757,30 @@ export default function App() {
               <span>{applications.length} Tracked</span>
             </div>
 
-            {/* Hidden CSV Input */}
+            {/* Hidden Excel & CSV File Input */}
             <input
               type="file"
-              id="csvFileInput"
-              accept=".csv"
+              id="fileUploadInput"
+              accept=".xlsx, .xls, .csv"
               onChange={handleFileUpload}
               className="hidden"
             />
 
             <button
-              onClick={() => document.getElementById('csvFileInput').click()}
-              className="flex items-center space-x-2 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm"
-              title="Import existing applications from an Excel or CSV file"
+              type="button"
+              onClick={() => document.getElementById('fileUploadInput').click()}
+              className="flex items-center space-x-2 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
+              title="Import applications from an Excel (.xlsx, .xls) or CSV file"
             >
-              <Upload className="h-4 w-4" />
-              <span>Import CSV</span>
+              <Upload className="h-4 w-4 text-emerald-600" />
+              <span>Import Excel / CSV</span>
             </button>
 
             {applications.length > 0 && (
               <button
                 type="button"
                 onClick={() => setShowShareModal(true)}
-                className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer"
+                className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
                 title="Share your shortlist to WhatsApp, Telegram, or export as PDF"
               >
                 <Share2 className="h-4 w-4" />
@@ -597,18 +789,54 @@ export default function App() {
             )}
 
             {applications.length > 0 && (
-              <button
-                onClick={exportToCSV}
-                className="flex items-center space-x-2 bg-black hover:bg-gray-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm"
-              >
-                <Download className="h-4 w-4" />
-                <span>Export CSV</span>
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowExportMenu((prev) => !prev)}
+                  className="flex items-center space-x-1.5 bg-black hover:bg-gray-800 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
+                  title="Export shortlist to Excel (.xlsx) or CSV"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Export</span>
+                  <ChevronDown className="h-3 w-3 opacity-70" />
+                </button>
+
+                {showExportMenu && (
+                  <div
+                    className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-2xl shadow-xl p-1.5 z-30 space-y-1 animate-fadeIn"
+                    onClick={() => setShowExportMenu(false)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => exportData('xlsx')}
+                      className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-gray-800 hover:bg-gray-100 flex items-center justify-between transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center space-x-2">
+                        <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>Excel Workbook (.xlsx)</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        Best
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => exportData('csv')}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-100 flex items-center space-x-2 transition-colors cursor-pointer"
+                    >
+                      <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+                      <span>CSV Document (.csv)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
 
-        <GermanyRoadmap />
+        {/* Germany Journey Progress Hero Widget */}
+        <JourneyDashboardWidget onOpenJourney={handleOpenJourney} />
 
         {/* Analytics Summary Dashboard */}
         <AnalyticsDashboard applications={applications} />
@@ -744,6 +972,21 @@ export default function App() {
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
         applications={applications}
+      />
+
+      {/* Admitted Celebration Modal */}
+      <AdmittedCelebrationModal
+        isOpen={Boolean(celebrationApp)}
+        onClose={() => setCelebrationApp(null)}
+        app={celebrationApp}
+      />
+
+      {/* Interactive Column Mapping & Import Preview Modal */}
+      <ImportMappingModal
+        isOpen={Boolean(pendingImportData)}
+        onClose={() => setPendingImportData(null)}
+        fileData={pendingImportData}
+        onConfirmImport={executeImportWithMapping}
       />
     </MainLayout>
   );

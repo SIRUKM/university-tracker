@@ -5,12 +5,7 @@ import {
   Check, 
   Share2, 
   Printer, 
-  Send, 
-  Sparkles, 
-  Snowflake, 
-  Sun, 
-  Calendar,
-  ExternalLink 
+  Send 
 } from 'lucide-react';
 
 export default function ShareShortlistModal({ isOpen, onClose, applications = [] }) {
@@ -20,8 +15,8 @@ export default function ShareShortlistModal({ isOpen, onClose, applications = []
   if (!isOpen) return null;
 
   const winterCount = applications.filter((a) => {
-    const intake = (a.intake || 'Winter').toLowerCase();
-    return !intake.includes('summer');
+    const intake = (a.intake || '').toLowerCase();
+    return intake.includes('winter') || intake.includes('wise');
   }).length;
 
   const summerCount = applications.filter((a) => {
@@ -37,19 +32,26 @@ export default function ShareShortlistModal({ isOpen, onClose, applications = []
       return "No applications shortlisted yet on UniTracker (https://unitracker.live).";
     }
 
+    let summaryParts = [`${applications.length} Universities`];
+    if (winterCount > 0) summaryParts.push(`❄️ ${winterCount} Winter`);
+    if (summerCount > 0) summaryParts.push(`☀️ ${summerCount} Summer`);
+    summaryParts.push(`⭐ ${p1Count} Priority 1`);
+
     let text = `🎓 *My German University Shortlist*\n`;
     text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `📊 *Summary:* ${applications.length} Universities | ❄️ ${winterCount} Winter | ☀️ ${summerCount} Summer | ⭐ ${p1Count} Priority 1\n`;
+    text += `📊 *Summary:* ${summaryParts.join(' | ')}\n`;
     text += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     applications.forEach((app, idx) => {
-      const isSummer = (app.intake || '').toLowerCase().includes('summer');
-      const intakeIcon = isSummer ? '☀️' : '❄️';
-      const intakeStr = isSummer ? 'Summer' : 'Winter';
+      const intakeRaw = (app.intake || '').toLowerCase();
+      const isSummer = intakeRaw.includes('summer');
+      const isWinter = intakeRaw.includes('winter');
+      const intakeIcon = isSummer ? '☀️' : isWinter ? '❄️' : '📅';
+      const intakeStr = isSummer ? 'Summer' : isWinter ? 'Winter' : 'Not Set';
       const pLabel = app.priority === '1' ? 'High (P1)' : app.priority === '2' ? 'Medium (P2)' : 'Low (P3)';
       const deadlineStr = app.deadline || 'TBA';
       const statusStr = app.status || 'Drafting';
-      const portalStr = app.portal || 'Direct Portal';
+      const portalStr = app.portal || 'Not Specified';
       const vpdStr = app.vpdRequired === 'Yes' ? ' [VPD Required]' : '';
 
       text += `${idx + 1}. *${app.universityName}*\n`;
@@ -116,12 +118,14 @@ export default function ShareShortlistModal({ isOpen, onClose, applications = []
     }
 
     const rowsHtml = applications.map((app, idx) => {
-      const isSummer = (app.intake || '').toLowerCase().includes('summer');
-      const intakeBadge = isSummer ? '☀️ Summer' : '❄️ Winter';
+      const intakeRaw = (app.intake || '').toLowerCase();
+      const isSummer = intakeRaw.includes('summer');
+      const isWinter = intakeRaw.includes('winter');
+      const intakeBadge = isSummer ? '☀️ Summer' : isWinter ? '❄️ Winter' : '—';
       const pLabel = app.priority === '1' ? 'P1 (High)' : app.priority === '2' ? 'P2 (Med)' : 'P3 (Low)';
       const deadline = app.deadline || 'TBA';
       const status = app.status || 'Drafting';
-      const portal = `${app.portal || 'Direct'}${app.vpdRequired === 'Yes' ? ' (VPD Required)' : ''}`;
+      const portal = `${app.portal || 'Not Specified'}${app.vpdRequired === 'Yes' ? ' (VPD Required)' : ''}`;
 
       return `
         <tr>
@@ -130,7 +134,7 @@ export default function ShareShortlistModal({ isOpen, onClose, applications = []
             <div style="font-size: 11px; font-weight: normal; color: #6b7280; margin-top: 2px;">${app.course || 'Master Program'}</div>
           </td>
           <td style="padding: 8px 10px; border-bottom: 1px solid #e5e7eb; white-space: nowrap; font-size: 11px;">
-            <span style="display: inline-block; padding: 2px 7px; border-radius: 9999px; font-size: 11px; font-weight: 600; background: ${isSummer ? '#fef3c7; color: #92400e;' : '#e0f2fe; color: #0369a1;'}">
+            <span style="display: inline-block; padding: 2px 7px; border-radius: 9999px; font-size: 11px; font-weight: 600; background: ${isSummer ? '#fef3c7; color: #92400e;' : isWinter ? '#e0f2fe; color: #0369a1;' : '#f3f4f6; color: #4b5563;'}">
               ${intakeBadge}
             </span>
           </td>
@@ -452,7 +456,11 @@ export default function ShareShortlistModal({ isOpen, onClose, applications = []
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <span className="text-xs font-semibold">
-                          {(app.intake || '').toLowerCase().includes('summer') ? '☀️ Summer' : '❄️ Winter'}
+                          {(app.intake || '').toLowerCase().includes('summer')
+                            ? '☀️ Summer'
+                            : (app.intake || '').toLowerCase().includes('winter')
+                            ? '❄️ Winter'
+                            : '—'}
                         </span>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">

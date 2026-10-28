@@ -53,6 +53,13 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Affiliate Disclosure */}
+        <div className="py-4 border-b border-gray-100 text-[11px] text-gray-400 leading-relaxed">
+          <p>
+            <strong className="text-gray-500 font-semibold">Affiliate Disclosure:</strong> UniTracker partners with trusted student service providers (such as blocked account operators, money transfer platforms, airlines, and accommodation networks). When you click through our partner links and open an account or book a service, we may earn an affiliate commission at zero additional cost to you. We only recommend services vetted for German university admissions.
+          </p>
+        </div>
+
         {/* Bottom Bar: Copyright & Status */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-400">
           <p>© {new Date().getFullYear()} UniTracker (unitracker.live). All rights reserved.</p>

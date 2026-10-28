@@ -69,21 +69,28 @@ const getAppCompositeKey = (app) =>
   `${(app?.universityName || "").trim().toLowerCase()}__${(app?.course || "").trim().toLowerCase()}`;
 
 const getSavedIntake = (app) => {
-  if (app?.intake) {
-    return (app.intake || "").toLowerCase().includes("summer")
-      ? "Summer"
-      : "Winter";
+  if (app?.intake !== undefined && app?.intake !== null) {
+    const clean = String(app.intake).trim();
+    if (!clean) return "";
+    if (clean.toLowerCase().includes("summer")) return "Summer";
+    if (clean.toLowerCase().includes("winter")) return "Winter";
+    return clean;
   }
   try {
     const raw = localStorage.getItem(INTAKE_STORAGE_KEY);
-    if (!raw) return "Winter";
+    if (!raw) return "";
     const map = JSON.parse(raw);
     const keyById = app?.id;
     const keyByName = getAppCompositeKey(app);
     const val = map[keyById] || map[keyByName];
-    return val && val.toLowerCase().includes("summer") ? "Summer" : "Winter";
+    if (!val) return "";
+    return val.toLowerCase().includes("summer")
+      ? "Summer"
+      : val.toLowerCase().includes("winter")
+      ? "Winter"
+      : "";
   } catch {
-    return "Winter";
+    return "";
   }
 };
 
@@ -93,9 +100,15 @@ const saveIntakeLocally = (app, intakeVal) => {
     const map = raw ? JSON.parse(raw) : {};
     const keyById = app?.id;
     const keyByName = getAppCompositeKey(app);
-    const normalized = (intakeVal || "").toLowerCase().includes("summer")
-      ? "Summer"
-      : "Winter";
+    let normalized = "";
+    if (intakeVal) {
+      const s = String(intakeVal).trim().toLowerCase();
+      normalized = s.includes("summer")
+        ? "Summer"
+        : s.includes("winter")
+        ? "Winter"
+        : intakeVal;
+    }
     if (keyById) map[keyById] = normalized;
     map[keyByName] = normalized;
     localStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(map));
@@ -214,19 +227,23 @@ const getDeadlineBadge = (deadlineStr) => {
 };
 
 const getIntakeBadge = (intakeStr) => {
-  const isSummer = (intakeStr || "").toLowerCase().includes("summer");
-  if (isSummer) {
+  if (!intakeStr) return null;
+  const s = String(intakeStr).toLowerCase();
+  if (s.includes("summer")) {
     return {
       text: "Summer Semester",
       classes: "bg-amber-100/90 text-amber-800 border-amber-300 font-semibold",
       icon: "summer",
     };
   }
-  return {
-    text: "Winter Semester",
-    classes: "bg-sky-100/90 text-sky-800 border-sky-300 font-semibold",
-    icon: "winter",
-  };
+  if (s.includes("winter")) {
+    return {
+      text: "Winter Semester",
+      classes: "bg-sky-100/90 text-sky-800 border-sky-300 font-semibold",
+      icon: "winter",
+    };
+  }
+  return null;
 };
 
 const getShiftedCalendarDate = (dateStr, daysOffset = 0) => {
@@ -295,7 +312,8 @@ export default function ApplicationCard({
     priorityConfig[formData.priority] || priorityConfig["1"];
   const deadlineBadge = getDeadlineBadge(formData.deadline);
   const intakeBadge = getIntakeBadge(formData.intake);
-  const isSummer = (formData.intake || "Winter").toLowerCase().includes("summer");
+  const isSummer = (formData.intake || "").toLowerCase().includes("summer");
+  const isWinter = (formData.intake || "").toLowerCase().includes("winter");
   const hasUnsavedChanges =
     isDraft || JSON.stringify(formData) !== JSON.stringify(app);
   const activeReminderLabel = reminderLabels[formData.reminderType];
@@ -413,12 +431,18 @@ export default function ApplicationCard({
     try {
       saveReminderLocally(dataToSave, dataToSave.reminderType);
       saveChecklistLocally(dataToSave, checklist);
-      saveIntakeLocally(dataToSave, dataToSave.intake || "Winter");
+      let resolvedIntake = "";
+      if (dataToSave.intake) {
+        resolvedIntake = dataToSave.intake.toLowerCase().includes("summer")
+          ? "Summer"
+          : dataToSave.intake.toLowerCase().includes("winter")
+          ? "Winter"
+          : dataToSave.intake;
+      }
+      saveIntakeLocally(dataToSave, resolvedIntake);
       await onSave({
         ...dataToSave,
-        intake: (dataToSave.intake || "Winter").toLowerCase().includes("summer")
-          ? "Summer"
-          : "Winter",
+        intake: resolvedIntake,
         course: dataToSave.course.trim(),
         checklistJson: JSON.stringify(checklist),
         userEmail: userEmail || dataToSave.userEmail || null,
@@ -482,12 +506,18 @@ export default function ApplicationCard({
     try {
       saveReminderLocally(formData, formData.reminderType);
       saveChecklistLocally(formData, checklist);
-      saveIntakeLocally(formData, formData.intake || "Winter");
+      let resolvedIntake = "";
+      if (formData.intake) {
+        resolvedIntake = formData.intake.toLowerCase().includes("summer")
+          ? "Summer"
+          : formData.intake.toLowerCase().includes("winter")
+          ? "Winter"
+          : formData.intake;
+      }
+      saveIntakeLocally(formData, resolvedIntake);
       await onSave({
         ...formData,
-        intake: (formData.intake || "Winter").toLowerCase().includes("summer")
-          ? "Summer"
-          : "Winter",
+        intake: resolvedIntake,
         course: formData.course.trim(),
         checklistJson: JSON.stringify(checklist),
         userEmail: userEmail || formData.userEmail || null,
@@ -574,15 +604,19 @@ export default function ApplicationCard({
         isDraft
           ? isSummer
             ? "border-amber-400 ring-2 ring-amber-400/20 shadow-md bg-amber-50/50"
-            : "border-sky-400 ring-2 ring-sky-400/20 shadow-md bg-sky-50/50"
+            : isWinter
+            ? "border-sky-400 ring-2 ring-sky-400/20 shadow-md bg-sky-50/50"
+            : "border-gray-300 ring-2 ring-gray-400/20 shadow-md bg-white"
           : isSummer
             ? "bg-amber-50/40 hover:bg-amber-50/60 border-amber-200/90 hover:border-amber-300 shadow-xs hover:shadow-md"
-            : "bg-sky-50/40 hover:bg-sky-50/60 border-sky-200/90 hover:border-sky-300 shadow-xs hover:shadow-md"
+            : isWinter
+            ? "bg-sky-50/40 hover:bg-sky-50/60 border-sky-200/90 hover:border-sky-300 shadow-xs hover:shadow-md"
+            : "bg-white hover:bg-gray-50/50 border-gray-200 hover:border-gray-300 shadow-xs hover:shadow-md"
       }`}
     >
       {/* Card Header */}
       <div className={`flex flex-wrap items-center justify-between gap-3 pb-4 border-b transition-colors duration-300 ${
-        isSummer ? "border-amber-200/70" : "border-sky-200/70"
+        isSummer ? "border-amber-200/70" : isWinter ? "border-sky-200/70" : "border-gray-100"
       }`}>
         <div className="flex flex-wrap items-center gap-2.5">
           <div
@@ -1095,16 +1129,19 @@ export default function ApplicationCard({
           <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
             {isSummer ? (
               <Sun className="h-3.5 w-3.5 mr-1 text-amber-500" />
-            ) : (
+            ) : isWinter ? (
               <Snowflake className="h-3.5 w-3.5 mr-1 text-sky-500" />
+            ) : (
+              <Calendar className="h-3.5 w-3.5 mr-1 text-gray-400" />
             )}
             Semester
           </label>
           <select
-            value={isSummer ? "Summer" : "Winter"}
+            value={isSummer ? "Summer" : isWinter ? "Winter" : ""}
             onChange={(e) => handleChange("intake", e.target.value)}
             className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm font-medium"
           >
+            <option value="">Not Specified</option>
             <option value="Winter">❄️ Winter Semester</option>
             <option value="Summer">☀️ Summer Semester</option>
           </select>
@@ -1145,7 +1182,7 @@ export default function ApplicationCard({
       {/* Expanded Extended Fields */}
       {isExpanded && (
         <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 mt-4 border-t p-4 rounded-xl transition-colors duration-300 ${
-          isSummer ? "bg-amber-100/35 border-amber-200/60" : "bg-sky-100/35 border-sky-200/60"
+          isSummer ? "bg-amber-100/35 border-amber-200/60" : isWinter ? "bg-sky-100/35 border-sky-200/60" : "bg-gray-50/70 border-gray-100"
         }`}>
           <div className="space-y-1">
             <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -1188,10 +1225,11 @@ export default function ApplicationCard({
               <LayoutTemplate className="h-3.5 w-3.5 mr-1" /> Portal
             </label>
             <select
-              value={formData.portal || "Direct Portal"}
+              value={formData.portal || ""}
               onChange={(e) => handleChange("portal", e.target.value)}
               className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm"
             >
+              <option value="">Not Specified</option>
               <option value="Direct Portal">Direct Portal</option>
               <option value="Uni-Assist">Uni-Assist</option>
             </select>
@@ -1327,7 +1365,7 @@ export default function ApplicationCard({
 
       {/* Save Status / Draft Actions Footer */}
       <div className={`pt-4 mt-4 border-t flex items-center justify-between transition-colors duration-300 ${
-        isSummer ? "border-amber-200/70" : "border-sky-200/70"
+        isSummer ? "border-amber-200/70" : isWinter ? "border-sky-200/70" : "border-gray-100"
       }`}>
         <div className="flex items-center space-x-2">
           {!isDraft ? (
