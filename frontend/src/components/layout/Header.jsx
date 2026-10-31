@@ -16,10 +16,11 @@ import {
   X,
   ChevronRight,
   Sparkles,
+  Mail,
 } from 'lucide-react';
 import InstallAppModal from '../common/InstallAppModal';
 
-export default function Header({ currentView = 'dashboard', onNavigate }) {
+export default function Header({ currentView = 'dashboard', onNavigate, onOpenContact }) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
@@ -168,6 +169,17 @@ export default function Header({ currentView = 'dashboard', onNavigate }) {
               <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
                 Perks
               </span>
+            </button>
+
+            {/* Contact Support Button on Desktop */}
+            <button
+              type="button"
+              onClick={onOpenContact}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 text-gray-600 hover:text-black hover:bg-gray-100 transition-all cursor-pointer"
+              title="Contact UniTracker Support (contact@unitracker.live)"
+            >
+              <Mail className="h-3.5 w-3.5 text-gray-500" />
+              <span>Contact</span>
             </button>
 
             {/* PWA Install Button on Desktop */}
@@ -345,6 +357,22 @@ export default function Header({ currentView = 'dashboard', onNavigate }) {
                   >
                     Perks 🎁
                   </span>
+                </button>
+
+                {/* Contact Support in Drawer */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    if (onOpenContact) onOpenContact();
+                  }}
+                  className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-100 hover:text-black transition-all cursor-pointer"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Mail className="h-4 w-4 text-emerald-600" />
+                    <span>Contact & Support</span>
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 opacity-60" />
                 </button>
 
                 {/* Install App Button in Drawer */}

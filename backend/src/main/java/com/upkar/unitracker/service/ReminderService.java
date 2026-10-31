@@ -23,7 +23,7 @@ public class ReminderService {
     @Value("${RESEND_API_KEY:}")
     private String resendApiKey;
 
-    @Value("${RESEND_FROM_EMAIL:UniTracker <onboarding@resend.dev>}")
+    @Value("${RESEND_FROM_EMAIL:UniTracker <reminder@unitracker.live>}")
     private String fromEmail;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();

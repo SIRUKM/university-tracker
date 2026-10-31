@@ -600,7 +600,7 @@ export default function ApplicationCard({
 
   return (
     <div
-      className={`border rounded-xl p-5 shadow-sm transition-all duration-300 ease-in-out ${
+      className={`border rounded-xl p-3.5 sm:p-5 shadow-sm transition-all duration-300 ease-in-out ${
         isDraft
           ? isSummer
             ? "border-amber-400 ring-2 ring-amber-400/20 shadow-md bg-amber-50/50"
@@ -615,38 +615,103 @@ export default function ApplicationCard({
       }`}
     >
       {/* Card Header */}
-      <div className={`flex flex-wrap items-center justify-between gap-3 pb-4 border-b transition-colors duration-300 ${
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 pb-3 sm:pb-4 border-b transition-colors duration-300 ${
         isSummer ? "border-amber-200/70" : isWinter ? "border-sky-200/70" : "border-gray-100"
       }`}>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div
-            className={`flex items-center space-x-1.5 px-3 py-1 rounded-md border text-xs font-bold ${currentPriority.badge}`}
-          >
-            <Flag
-              className={`h-3.5 w-3.5 fill-current ${currentPriority.flag}`}
-            />
-            <span>
-              P{formData.priority || "1"} — {currentPriority.label}
-            </span>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-2.5">
+          {/* Top row on mobile: Badges (Priority, Intake, Status) + Mobile Details/Delete Actions */}
+          <div className="flex items-center justify-between sm:justify-start flex-wrap gap-2">
+            <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
+              <div
+                className={`flex items-center space-x-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-md border text-xs font-bold ${currentPriority.badge}`}
+              >
+                <Flag
+                  className={`h-3 sm:h-3.5 w-3 sm:w-3.5 fill-current ${currentPriority.flag}`}
+                />
+                <span>
+                  P{formData.priority || "1"} — {currentPriority.label}
+                </span>
+              </div>
+
+              {/* Intake Badge (WiSe / SoSe) */}
+              {intakeBadge && (
+                <span
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md border text-xs font-semibold flex items-center space-x-1 ${intakeBadge.classes}`}
+                >
+                  {intakeBadge.icon === "winter" ? (
+                    <Snowflake className="h-3 w-3 mr-0.5 text-sky-500" />
+                  ) : intakeBadge.icon === "summer" ? (
+                    <Sun className="h-3 w-3 mr-0.5 text-amber-500" />
+                  ) : (
+                    <Calendar className="h-3 w-3 mr-0.5 text-gray-500" />
+                  )}
+                  <span>{intakeBadge.text}</span>
+                </span>
+              )}
+
+              {/* Status Badge (visible in mobile compact view so user knows status without dropdown) */}
+              {formData.status && (
+                <span
+                  className={`px-2 py-0.5 rounded-md border text-xs font-semibold sm:hidden ${
+                    formData.status === "Admitted"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                      : formData.status === "Submitted"
+                      ? "bg-blue-50 text-blue-800 border-blue-200"
+                      : formData.status === "Rejected"
+                      ? "bg-red-50 text-red-800 border-red-200"
+                      : "bg-gray-100 text-gray-700 border-gray-200"
+                  }`}
+                >
+                  {formData.status === "Admitted"
+                    ? "🎉 Admitted"
+                    : formData.status === "Submitted"
+                    ? "🚀 Submitted"
+                    : formData.status === "Rejected"
+                    ? "❌ Rejected"
+                    : "📝 Drafting"}
+                </span>
+              )}
+            </div>
+
+            {/* Mobile Actions: All details + Delete */}
+            <div className="flex sm:hidden items-center space-x-1.5">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-[11px] font-semibold text-gray-600 hover:text-black px-2.5 py-1 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex items-center space-x-1 border border-gray-200"
+              >
+                <span>{isExpanded ? "Less" : "All details"}</span>
+                {isExpanded ? (
+                  <ChevronUp className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </button>
+
+              {isDraft ? (
+                <button
+                  type="button"
+                  onClick={onCancelDraft}
+                  className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50"
+                  title="Cancel"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onRemove(formData.id)}
+                  className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50"
+                  title="Delete application"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Intake Badge (WiSe / SoSe) */}
-          {intakeBadge && (
-            <span
-              className={`px-2.5 py-1 rounded-md border text-xs font-semibold flex items-center space-x-1 ${intakeBadge.classes}`}
-            >
-              {intakeBadge.icon === "winter" ? (
-                <Snowflake className="h-3.5 w-3.5 mr-0.5 text-sky-500" />
-              ) : intakeBadge.icon === "summer" ? (
-                <Sun className="h-3.5 w-3.5 mr-0.5 text-amber-500" />
-              ) : (
-                <Calendar className="h-3.5 w-3.5 mr-0.5 text-gray-500" />
-              )}
-              <span>{intakeBadge.text}</span>
-            </span>
-          )}
-
-          <h3 className="text-lg font-bold text-gray-900 flex flex-wrap items-center gap-2">
+          {/* University Name + Redirecting Website link */}
+          <h3 className="text-base sm:text-lg font-bold text-gray-900 flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span>{formData.universityName}</span>
             {formData.courseLink && (
               <a
@@ -667,171 +732,175 @@ export default function ApplicationCard({
             )}
           </h3>
 
-          {/* Dynamic Color-Coded Deadline Badge */}
-          {deadlineBadge && (
-            <span
-              className={`px-2.5 py-0.5 rounded-full border text-xs font-semibold flex items-center space-x-1 ${deadlineBadge.classes}`}
-            >
-              <Clock className="h-3 w-3 mr-1" />
-              <span>{deadlineBadge.text}</span>
-            </span>
-          )}
+          {/* Remaining Days, Remind Me & To-Do List buttons */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {/* Dynamic Color-Coded Deadline Badge (Remaining days) */}
+            {deadlineBadge && (
+              <span
+                className={`px-2.5 py-0.5 rounded-full border text-xs font-semibold flex items-center space-x-1 ${deadlineBadge.classes}`}
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                <span>{deadlineBadge.text}</span>
+              </span>
+            )}
 
-          {/* Remind Me Button + Static Adjacent Reminder Badge */}
-          {(formData.deadline || formData.openingDate) && (
-            <div
-              className="flex flex-wrap items-center gap-2"
-              ref={reminderMenuRef}
-            >
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowReminderMenu((prev) => !prev)}
-                  className={`text-xs font-semibold border px-2.5 py-0.5 rounded-full flex items-center space-x-1 transition-all ${
-                    activeReminderLabel
-                      ? "bg-gray-900 text-white border-gray-900 hover:bg-gray-800"
-                      : "bg-gray-50 text-gray-600 border-gray-200 hover:text-black hover:bg-gray-100"
-                  }`}
-                >
-                  {activeReminderLabel ? (
-                    <BellRing className="h-3 w-3 text-emerald-400" />
-                  ) : (
-                    <Bell className="h-3 w-3" />
-                  )}
-                  <span>Remind Me</span>
-                  <ChevronDown className="h-3 w-3 ml-0.5 opacity-70" />
-                </button>
-
-                {showReminderMenu && (
-                  <div className="absolute left-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 z-30">
-                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                      Automated Email Alert
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={!formData.openingDate}
-                      onClick={() => handleSelectReminderOption("opening")}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <span className="font-medium text-gray-800 flex items-center gap-1.5">
-                        {formData.reminderType === "OPENING" && (
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        )}
-                        <span>When application opens</span>
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        {formData.openingDate
-                          ? formData.openingDate
-                          : "No date"}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={!formData.deadline}
-                      onClick={() => handleSelectReminderOption("15days")}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <span className="font-medium text-gray-800 flex items-center gap-1.5">
-                        {formData.reminderType === "15_DAYS" && (
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        )}
-                        <span>15 days before deadline</span>
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        -15d email
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={!formData.deadline}
-                      onClick={() => handleSelectReminderOption("10days")}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <span className="font-medium text-gray-800 flex items-center gap-1.5">
-                        {formData.reminderType === "10_DAYS" && (
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        )}
-                        <span>10 days before deadline</span>
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        -10d email
-                      </span>
-                    </button>
-
-                    {activeReminderLabel && (
-                      <button
-                        type="button"
-                        onClick={() => handleSelectReminderOption("none")}
-                        className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 font-medium transition-colors"
-                      >
-                        Turn off email reminder
-                      </button>
-                    )}
-
-                    <div className="my-1 border-t border-gray-100" />
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectReminderOption("custom")}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between text-black font-semibold transition-colors"
-                    >
-                      <span>Custom calendar reminder...</span>
-                      <ExternalLink className="h-3 w-3 text-gray-400" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Static Permanent Badge Adjacent to "Remind Me" */}
-              {activeReminderLabel && (
-                <span
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-600 text-white border border-emerald-600 shadow-sm"
-                  title={`Automated email reminder active for ${formData.universityName} (${formData.course || "Course"})`}
-                >
-                  <Check className="h-3 w-3 stroke-[2.5]" />
-                  <span>Reminder Set: {activeReminderLabel}</span>
+            {/* Remind Me Button + Static Adjacent Reminder Badge */}
+            {(formData.deadline || formData.openingDate) && (
+              <div
+                className="flex flex-wrap items-center gap-2"
+                ref={reminderMenuRef}
+              >
+                <div className="relative">
                   <button
                     type="button"
-                    onClick={() => handleSelectReminderOption("none")}
-                    className="ml-0.5 hover:text-emerald-200 transition-colors"
-                    title="Remove reminder"
+                    onClick={() => setShowReminderMenu((prev) => !prev)}
+                    className={`text-xs font-semibold border px-2.5 py-0.5 rounded-full flex items-center space-x-1 transition-all ${
+                      activeReminderLabel
+                        ? "bg-gray-900 text-white border-gray-900 hover:bg-gray-800"
+                        : "bg-gray-50 text-gray-600 border-gray-200 hover:text-black hover:bg-gray-100"
+                    }`}
                   >
-                    <X className="h-3 w-3" />
+                    {activeReminderLabel ? (
+                      <BellRing className="h-3 w-3 text-emerald-400" />
+                    ) : (
+                      <Bell className="h-3 w-3" />
+                    )}
+                    <span>Remind Me</span>
+                    <ChevronDown className="h-3 w-3 ml-0.5 opacity-70" />
                   </button>
-                </span>
-              )}
-            </div>
-          )}
 
-          {/* To-Do Checklist Toggle Button & Progress Pill */}
-          <button
-            type="button"
-            onClick={() => setShowChecklist((prev) => !prev)}
-            className={`text-xs font-semibold border px-2.5 py-0.5 rounded-full flex items-center space-x-1.5 transition-all ${
-              allTasksDone
-                ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                : totalTasksCount > 0
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "bg-gray-50 text-gray-600 border-gray-200 hover:text-black hover:bg-gray-100"
-            }`}
-          >
-            <ListTodo className="h-3.5 w-3.5" />
-            <span>
-              {totalTasksCount > 0
-                ? `Tasks (${completedTasksCount}/${totalTasksCount})`
-                : "To-Do List"}
-            </span>
-          </button>
+                  {showReminderMenu && (
+                    <div className="absolute left-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg py-1.5 z-30">
+                      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        Automated Email Alert
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={!formData.openingDate}
+                        onClick={() => handleSelectReminderOption("opening")}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <span className="font-medium text-gray-800 flex items-center gap-1.5">
+                          {formData.reminderType === "OPENING" && (
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          )}
+                          <span>When application opens</span>
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {formData.openingDate
+                            ? formData.openingDate
+                            : "No date"}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={!formData.deadline}
+                        onClick={() => handleSelectReminderOption("15days")}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <span className="font-medium text-gray-800 flex items-center gap-1.5">
+                          {formData.reminderType === "15_DAYS" && (
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          )}
+                          <span>15 days before deadline</span>
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          -15d email
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={!formData.deadline}
+                        onClick={() => handleSelectReminderOption("10days")}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <span className="font-medium text-gray-800 flex items-center gap-1.5">
+                          {formData.reminderType === "10_DAYS" && (
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          )}
+                          <span>10 days before deadline</span>
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          -10d email
+                        </span>
+                      </button>
+
+                      {activeReminderLabel && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectReminderOption("none")}
+                          className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 font-medium transition-colors"
+                        >
+                          Turn off email reminder
+                        </button>
+                      )}
+
+                      <div className="my-1 border-t border-gray-100" />
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectReminderOption("custom")}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center justify-between text-black font-semibold transition-colors"
+                      >
+                        <span>Custom calendar reminder...</span>
+                        <ExternalLink className="h-3 w-3 text-gray-400" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Static Permanent Badge Adjacent to "Remind Me" */}
+                {activeReminderLabel && (
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-600 text-white border border-emerald-600 shadow-sm"
+                    title={`Automated email reminder active for ${formData.universityName} (${formData.course || "Course"})`}
+                  >
+                    <Check className="h-3 w-3 stroke-[2.5]" />
+                    <span>Reminder Set: {activeReminderLabel}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectReminderOption("none")}
+                      className="ml-0.5 hover:text-emerald-200 transition-colors"
+                      title="Remove reminder"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* To-Do Checklist Toggle Button & Progress Pill */}
+            <button
+              type="button"
+              onClick={() => setShowChecklist((prev) => !prev)}
+              className={`text-xs font-semibold border px-2.5 py-0.5 rounded-full flex items-center space-x-1.5 transition-all ${
+                allTasksDone
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                  : totalTasksCount > 0
+                    ? "bg-gray-900 text-white border-gray-900"
+                    : "bg-gray-50 text-gray-600 border-gray-200 hover:text-black hover:bg-gray-100"
+              }`}
+            >
+              <ListTodo className="h-3.5 w-3.5" />
+              <span>
+                {totalTasksCount > 0
+                  ? `Tasks (${completedTasksCount}/${totalTasksCount})`
+                  : "To-Do List"}
+              </span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        {/* Desktop Actions: All details + Delete (hidden on mobile, visible on sm and up) */}
+        <div className="hidden sm:flex items-center space-x-2">
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-xs font-semibold text-gray-600 hover:text-black px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex items-center space-x-1"
+            className="text-xs font-semibold text-gray-600 hover:text-black px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex items-center space-x-1 border border-gray-200"
           >
             <span>{isExpanded ? "Less details" : "All details"}</span>
             {isExpanded ? (
@@ -1099,7 +1168,8 @@ export default function ApplicationCard({
       )}
 
       {/* Primary Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-3 sm:pt-4">
+        {/* Course Name - Always visible */}
         <div className="space-y-1">
           <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <BookOpen className="h-3.5 w-3.5 mr-1" /> Course Name{" "}
@@ -1125,7 +1195,8 @@ export default function ApplicationCard({
           )}
         </div>
 
-        <div className="space-y-1">
+        {/* Semester - Only visible on desktop or when expanded */}
+        <div className={`space-y-1 ${isDraft || isExpanded ? "block" : "hidden sm:block"}`}>
           <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
             {isSummer ? (
               <Sun className="h-3.5 w-3.5 mr-1 text-amber-500" />
@@ -1147,7 +1218,8 @@ export default function ApplicationCard({
           </select>
         </div>
 
-        <div className="space-y-1">
+        {/* Priority Level - Only visible on desktop or when expanded */}
+        <div className={`space-y-1 ${isDraft || isExpanded ? "block" : "hidden sm:block"}`}>
           <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <Flag className="h-3.5 w-3.5 mr-1" /> Priority Level
           </label>
@@ -1162,7 +1234,8 @@ export default function ApplicationCard({
           </select>
         </div>
 
-        <div className="space-y-1">
+        {/* Application Status - Only visible on desktop or when expanded */}
+        <div className={`space-y-1 ${isDraft || isExpanded ? "block" : "hidden sm:block"}`}>
           <label className="flex items-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
             <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Application Status
           </label>
@@ -1364,7 +1437,7 @@ export default function ApplicationCard({
       )}
 
       {/* Save Status / Draft Actions Footer */}
-      <div className={`pt-4 mt-4 border-t flex items-center justify-between transition-colors duration-300 ${
+      <div className={`pt-2.5 sm:pt-4 mt-2.5 sm:mt-4 border-t flex items-center justify-between transition-colors duration-300 ${
         isSummer ? "border-amber-200/70" : isWinter ? "border-sky-200/70" : "border-gray-100"
       }`}>
         <div className="flex items-center space-x-2">

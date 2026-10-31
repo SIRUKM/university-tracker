@@ -746,14 +746,25 @@ export default function App() {
         {/* Title & Counter Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">Application Dashboard</h2>
-            <p className="text-gray-500 text-sm mt-1">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
+                Application Dashboard
+              </h2>
+              {/* Mobile-only compact tracked counter badge */}
+              <div className="md:hidden inline-flex items-center space-x-1.5 bg-white border border-gray-200 px-2.5 py-1 rounded-full shadow-2xs text-xs font-semibold text-gray-700 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>{applications.length} Tracked</span>
+              </div>
+            </div>
+            <p className="text-gray-500 text-xs sm:text-sm mt-1">
               Search German universities, fill details, and track your admissions progress.
             </p>
           </div>
-          <div className="flex items-center space-x-3">
-            <div className="bg-white border border-gray-200 px-4 py-2 rounded-xl shadow-sm text-xs font-semibold text-gray-700 flex items-center space-x-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+
+          <div className="flex items-center gap-2.5 w-full md:w-auto">
+            {/* Desktop-only tracked counter badge */}
+            <div className="hidden md:flex bg-white border border-gray-200 px-3.5 py-2 rounded-xl shadow-xs text-xs font-semibold text-gray-700 items-center space-x-2 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>{applications.length} Tracked</span>
             </div>
 
@@ -766,72 +777,84 @@ export default function App() {
               className="hidden"
             />
 
-            <button
-              type="button"
-              onClick={() => document.getElementById('fileUploadInput').click()}
-              className="flex items-center space-x-2 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
-              title="Import applications from an Excel (.xlsx, .xls) or CSV file"
-            >
-              <Upload className="h-4 w-4 text-emerald-600" />
-              <span>Import Excel / CSV</span>
-            </button>
-
-            {applications.length > 0 && (
+            {/* Action Buttons: 3 equal-width columns on mobile, clean flex on desktop */}
+            <div className={`grid ${applications.length > 0 ? 'grid-cols-3' : 'grid-cols-1'} gap-2 w-full md:w-auto md:flex md:items-center md:space-x-2.5`}>
+              {/* Import Button */}
               <button
                 type="button"
-                onClick={() => setShowShareModal(true)}
-                className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
-                title="Share your shortlist to WhatsApp, Telegram, or export as PDF"
+                onClick={() => document.getElementById('fileUploadInput').click()}
+                className="flex items-center justify-center space-x-1.5 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 text-xs font-semibold h-10 px-2.5 sm:px-3.5 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
+                title="Import applications from an Excel (.xlsx, .xls) or CSV file"
               >
-                <Share2 className="h-4 w-4" />
-                <span>Share Shortlist</span>
+                <Upload className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span className="truncate">
+                  <span className="inline md:hidden">Import</span>
+                  <span className="hidden md:inline">Import Excel / CSV</span>
+                </span>
               </button>
-            )}
 
-            {applications.length > 0 && (
-              <div className="relative">
+              {/* Share Shortlist Button */}
+              {applications.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setShowExportMenu((prev) => !prev)}
-                  className="flex items-center space-x-1.5 bg-black hover:bg-gray-800 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer"
-                  title="Export shortlist to Excel (.xlsx) or CSV"
+                  onClick={() => setShowShareModal(true)}
+                  className="flex items-center justify-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold h-10 px-2.5 sm:px-3.5 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
+                  title="Share your shortlist to WhatsApp, Telegram, or export as PDF"
                 >
-                  <Download className="h-4 w-4" />
-                  <span>Export</span>
-                  <ChevronDown className="h-3 w-3 opacity-70" />
+                  <Share2 className="h-4 w-4 shrink-0" />
+                  <span className="truncate">
+                    <span className="inline md:hidden">Share</span>
+                    <span className="hidden md:inline">Share Shortlist</span>
+                  </span>
                 </button>
+              )}
 
-                {showExportMenu && (
-                  <div
-                    className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-2xl shadow-xl p-1.5 z-30 space-y-1 animate-fadeIn"
-                    onClick={() => setShowExportMenu(false)}
+              {/* Export Dropdown Button */}
+              {applications.length > 0 && (
+                <div className="relative w-full md:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => setShowExportMenu((prev) => !prev)}
+                    className="w-full flex items-center justify-center space-x-1.5 bg-black hover:bg-gray-800 text-white text-xs font-semibold h-10 px-2.5 sm:px-3.5 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
+                    title="Export shortlist to Excel (.xlsx) or CSV"
                   >
-                    <button
-                      type="button"
-                      onClick={() => exportData('xlsx')}
-                      className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-gray-800 hover:bg-gray-100 flex items-center justify-between transition-colors cursor-pointer"
-                    >
-                      <span className="flex items-center space-x-2">
-                        <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
-                        <span>Excel Workbook (.xlsx)</span>
-                      </span>
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                        Best
-                      </span>
-                    </button>
+                    <Download className="h-4 w-4 shrink-0" />
+                    <span>Export</span>
+                    <ChevronDown className="h-3 w-3 opacity-70 shrink-0" />
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() => exportData('csv')}
-                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-100 flex items-center space-x-2 transition-colors cursor-pointer"
+                  {showExportMenu && (
+                    <div
+                      className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-2xl shadow-xl p-1.5 z-30 space-y-1 animate-fadeIn"
+                      onClick={() => setShowExportMenu(false)}
                     >
-                      <FileText className="h-4 w-4 text-gray-400 shrink-0" />
-                      <span>CSV Document (.csv)</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+                      <button
+                        type="button"
+                        onClick={() => exportData('xlsx')}
+                        className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-gray-800 hover:bg-gray-100 flex items-center justify-between transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center space-x-2">
+                          <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
+                          <span>Excel Workbook (.xlsx)</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                          Best
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => exportData('csv')}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-100 flex items-center space-x-2 transition-colors cursor-pointer"
+                      >
+                        <FileText className="h-4 w-4 text-gray-400 shrink-0" />
+                        <span>CSV Document (.csv)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -1,9 +1,9 @@
-import { GraduationCap, ExternalLink, ShieldCheck } from 'lucide-react';
+import { GraduationCap, ExternalLink, ShieldCheck, Mail } from 'lucide-react';
 
-export default function Footer() {
+export default function Footer({ onOpenContact }) {
   return (
-    <footer className="bg-white border-t border-gray-200 mt-16">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <footer className="bg-white border-t border-gray-200 mt-16 w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-12 py-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b border-gray-100">
           
           {/* Brand & Tagline */}
@@ -21,8 +21,8 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Useful Official Portals */}
-          <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-gray-600">
+          {/* Useful Official Portals & Contact Support */}
+          <div className="flex flex-wrap items-center gap-5 text-xs font-medium text-gray-600">
             <a
               href="https://www.daad.de/en/studying-in-germany/universities/all-degree-programmes/"
               target="_blank"
@@ -38,7 +38,7 @@ export default function Footer() {
               rel="noopener noreferrer"
               className="hover:text-black transition-colors flex items-center space-x-1"
             >
-              <span>Uni-Assist Portal</span>
+              <span>Uni-Assist</span>
               <ExternalLink className="h-3 w-3 text-gray-400" />
             </a>
             <a
@@ -47,9 +47,20 @@ export default function Footer() {
               rel="noopener noreferrer"
               className="hover:text-black transition-colors flex items-center space-x-1"
             >
-              <span>Anabin Database</span>
+              <span>Anabin</span>
               <ExternalLink className="h-3 w-3 text-gray-400" />
             </a>
+
+            {/* Business Email Contact Pill */}
+            <button
+              type="button"
+              onClick={onOpenContact}
+              className="inline-flex items-center space-x-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer font-semibold"
+              title="Send an email to contact@unitracker.live"
+            >
+              <Mail className="h-3.5 w-3.5 text-emerald-600" />
+              <span>contact@unitracker.live</span>
+            </button>
           </div>
         </div>
 
@@ -60,11 +71,19 @@ export default function Footer() {
           </p>
         </div>
 
-        {/* Bottom Bar: Copyright & Status */}
+        {/* Bottom Bar: Copyright, Status & Direct Mailto */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-400">
           <p>© {new Date().getFullYear()} UniTracker (unitracker.live). All rights reserved.</p>
           
           <div className="flex items-center space-x-4">
+            <button
+              type="button"
+              onClick={onOpenContact}
+              className="hover:text-gray-700 transition-colors cursor-pointer"
+            >
+              Help & Support
+            </button>
+            <span>•</span>
             <span className="flex items-center space-x-1.5 text-gray-500">
               <ShieldCheck className="h-3.5 w-3.5 text-green-600" />
               <span>Cloud Sync Active</span>
