@@ -8,8 +8,6 @@ import AnalyticsDashboard from './components/tracker/AnalyticsDashboard';
 import { FolderPlus, ArrowUpDown, Download, Upload, Share2, Snowflake, Sun, FileSpreadsheet, FileText, ChevronDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import GermanyRoadmap from "./components/tracker/GermanyRoadmap";
-import JourneyDashboardWidget from "./components/tracker/JourneyDashboardWidget";
-import SocialProofBadge from "./components/common/SocialProofBadge";
 import BavarianCalculator from "./components/calculator/BavarianCalculator";
 import ShareShortlistModal from "./components/tracker/ShareShortlistModal";
 import StudentDeals from "./components/deals/StudentDeals";
@@ -707,6 +705,50 @@ export default function App() {
     return [...filtered].sort((a, b) => {
       if (sortBy === 'priority') {
         return (a.priority || '1').localeCompare(b.priority || '1');
+      } else if (sortBy === 'openNow') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const getOpenRank = (app) => {
+          const isDeadlinePassed =
+            app.deadline && new Date(`${app.deadline}T00:00:00`) < today;
+          if (isDeadlinePassed) return 4; // Deadline passed (closed)
+
+          if (app.openingDate) {
+            const openDate = new Date(`${app.openingDate}T00:00:00`);
+            if (!isNaN(openDate.getTime())) {
+              if (openDate <= today) return 1; // Explicitly open now
+              return 3; // Future opening (not yet open)
+            }
+          }
+
+          // No opening date set, but deadline in future or not set
+          return 2; // Open / Rolling
+        };
+
+        const rankA = getOpenRank(a);
+        const rankB = getOpenRank(b);
+
+        if (rankA !== rankB) {
+          return rankA - rankB;
+        }
+
+        // If both are open now (rank 1 or 2), sort by soonest deadline
+        if (rankA === 1 || rankA === 2) {
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline) - new Date(b.deadline);
+        }
+
+        // If both open in future (rank 3), sort by soonest opening date
+        if (rankA === 3) {
+          if (!a.openingDate) return 1;
+          if (!b.openingDate) return -1;
+          return new Date(a.openingDate) - new Date(b.openingDate);
+        }
+
+        // If both closed (rank 4), sort by deadline descending
+        return new Date(b.deadline || 0) - new Date(a.deadline || 0);
       } else if (sortBy === 'deadline') {
         if (!a.deadline) return 1;
         if (!b.deadline) return -1;
@@ -736,18 +778,13 @@ export default function App() {
           onNavigateToDeals={() => handleNavigate('deals')}
         />
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-8 w-full">
         
-        {/* Social Proof Pill Badge */}
-        <div className="flex justify-center w-full">
-          <SocialProofBadge count="2,500+" label="German university applicants" />
-        </div>
-
         {/* Title & Counter Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
                 Application Dashboard
               </h2>
               {/* Mobile-only compact tracked counter badge */}
@@ -756,14 +793,14 @@ export default function App() {
                 <span>{applications.length} Tracked</span>
               </div>
             </div>
-            <p className="text-gray-500 text-xs sm:text-sm mt-1">
+            <p className="text-gray-500 text-sm sm:text-base mt-1">
               Search German universities, fill details, and track your admissions progress.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 w-full md:w-auto">
             {/* Desktop-only tracked counter badge */}
-            <div className="hidden md:flex bg-white border border-gray-200 px-3.5 py-2 rounded-xl shadow-xs text-xs font-semibold text-gray-700 items-center space-x-2 shrink-0">
+            <div className="hidden md:flex bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-xs text-xs sm:text-sm font-semibold text-gray-700 items-center space-x-2 shrink-0">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>{applications.length} Tracked</span>
             </div>
@@ -783,7 +820,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => document.getElementById('fileUploadInput').click()}
-                className="flex items-center justify-center space-x-1.5 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 text-xs font-semibold h-10 px-2.5 sm:px-3.5 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
+                className="flex items-center justify-center space-x-1.5 bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 text-xs sm:text-sm font-semibold h-10 sm:h-11 px-3 sm:px-4 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
                 title="Import applications from an Excel (.xlsx, .xls) or CSV file"
               >
                 <Upload className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -798,7 +835,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setShowShareModal(true)}
-                  className="flex items-center justify-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold h-10 px-2.5 sm:px-3.5 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
+                  className="flex items-center justify-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold h-10 sm:h-11 px-3 sm:px-4 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
                   title="Share your shortlist to WhatsApp, Telegram, or export as PDF"
                 >
                   <Share2 className="h-4 w-4 shrink-0" />
@@ -815,7 +852,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setShowExportMenu((prev) => !prev)}
-                    className="w-full flex items-center justify-center space-x-1.5 bg-black hover:bg-gray-800 text-white text-xs font-semibold h-10 px-2.5 sm:px-3.5 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
+                    className="w-full flex items-center justify-center space-x-1.5 bg-black hover:bg-gray-800 text-white text-xs sm:text-sm font-semibold h-10 sm:h-11 px-3 sm:px-4 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
                     title="Export shortlist to Excel (.xlsx) or CSV"
                   >
                     <Download className="h-4 w-4 shrink-0" />
@@ -857,9 +894,6 @@ export default function App() {
             </div>
           </div>
         </div>
-
-        {/* Germany Journey Progress Hero Widget */}
-        <JourneyDashboardWidget onOpenJourney={handleOpenJourney} />
 
         {/* Analytics Summary Dashboard */}
         <AnalyticsDashboard applications={applications} />
@@ -930,9 +964,10 @@ export default function App() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-black"
+                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
               >
                 <option value="priority">Priority Level (High first)</option>
+                <option value="openNow">Currently Open (Open Now)</option>
                 <option value="deadline">Deadline (Soonest first)</option>
                 <option value="openingDate">Opening Date (Soonest first)</option>
               </select>

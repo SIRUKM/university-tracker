@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   SignedIn,
   SignedOut,
   SignInButton,
   SignUpButton,
   UserButton,
-} from '@clerk/clerk-react';
+} from "@clerk/clerk-react";
 import {
   Calculator,
   LayoutDashboard,
@@ -17,10 +17,14 @@ import {
   ChevronRight,
   Sparkles,
   Mail,
-} from 'lucide-react';
-import InstallAppModal from '../common/InstallAppModal';
+} from "lucide-react";
+import InstallAppModal from "../common/InstallAppModal";
 
-export default function Header({ currentView = 'dashboard', onNavigate, onOpenContact }) {
+export default function Header({
+  currentView = "dashboard",
+  onNavigate,
+  onOpenContact,
+}) {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
@@ -29,7 +33,7 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
   useEffect(() => {
     // Check if running in standalone PWA mode
     if (
-      window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone === true
     ) {
       setIsStandalone(true);
@@ -40,20 +44,23 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
       setDeferredPrompt(e);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     return () =>
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
   }, []);
 
   // Prevent background scroll when mobile drawer is open
   useEffect(() => {
     if (isMobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [isMobileMenuOpen]);
 
@@ -61,7 +68,7 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
+      if (outcome === "accepted") {
         setDeferredPrompt(null);
       }
     } else {
@@ -93,21 +100,25 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
 
             {/* Brand Logo */}
             <div
-              onClick={() => handleNavClick('dashboard')}
+              onClick={() => handleNavClick("dashboard")}
               className="flex items-center cursor-pointer select-none"
               title="UniTracker Dashboard"
             >
               <div className="relative flex items-center justify-center w-7 sm:w-8 h-7 sm:h-8 mt-1.5 -mr-1">
                 <span
                   className="absolute font-bold text-[1rem] sm:text-[1.15rem]"
-                  style={{ color: '#000000', transform: 'rotate(-90deg)' }}
+                  style={{ color: "#000000", transform: "rotate(-90deg)" }}
                 >
                   uni
                 </span>
               </div>
               <h1
                 className="font-bold text-2xl sm:text-3xl md:text-4xl m-0 tracking-tight"
-                style={{ color: '#000000', letterSpacing: '-0.05em', lineHeight: '1' }}
+                style={{
+                  color: "#000000",
+                  letterSpacing: "-0.05em",
+                  lineHeight: "1",
+                }}
               >
                 tracker
               </h1>
@@ -118,11 +129,11 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
           <nav className="hidden lg:flex items-center space-x-1 xl:space-x-2">
             <button
               type="button"
-              onClick={() => handleNavClick('dashboard')}
+              onClick={() => handleNavClick("dashboard")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                currentView === 'dashboard'
-                  ? 'bg-black text-white shadow-2xs'
-                  : 'text-gray-600 hover:text-black hover:bg-gray-100'
+                currentView === "dashboard"
+                  ? "bg-black text-white shadow-2xs"
+                  : "text-gray-600 hover:text-black hover:bg-gray-100"
               }`}
             >
               <LayoutDashboard className="h-3.5 w-3.5" />
@@ -131,11 +142,11 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
 
             <button
               type="button"
-              onClick={() => handleNavClick('journey')}
+              onClick={() => handleNavClick("journey")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                currentView === 'journey'
-                  ? 'bg-black text-white shadow-2xs'
-                  : 'text-gray-600 hover:text-black hover:bg-gray-100'
+                currentView === "journey"
+                  ? "bg-black text-white shadow-2xs"
+                  : "text-gray-600 hover:text-black hover:bg-gray-100"
               }`}
             >
               <Compass className="h-3.5 w-3.5" />
@@ -144,11 +155,11 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
 
             <button
               type="button"
-              onClick={() => handleNavClick('calculator')}
+              onClick={() => handleNavClick("calculator")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                currentView === 'calculator'
-                  ? 'bg-black text-white shadow-2xs'
-                  : 'text-gray-600 hover:text-black hover:bg-gray-100'
+                currentView === "calculator"
+                  ? "bg-black text-white shadow-2xs"
+                  : "text-gray-600 hover:text-black hover:bg-gray-100"
               }`}
             >
               <Calculator className="h-3.5 w-3.5" />
@@ -157,18 +168,15 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
 
             <button
               type="button"
-              onClick={() => handleNavClick('deals')}
+              onClick={() => handleNavClick("deals")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                currentView === 'deals'
-                  ? 'bg-black text-white shadow-2xs'
-                  : 'text-gray-600 hover:text-black hover:bg-gray-100'
+                currentView === "deals"
+                  ? "bg-black text-white shadow-2xs"
+                  : "text-gray-600 hover:text-black hover:bg-gray-100"
               }`}
             >
-              <Gift className="h-3.5 w-3.5 text-amber-500" />
-              <span>Student Deals</span>
-              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                Perks
-              </span>
+              <Gift className="h-3.5 w-3.5 text-gray-500" />
+              <span>Student Resources</span>
             </button>
 
             {/* Contact Support Button on Desktop */}
@@ -187,29 +195,17 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
               <button
                 type="button"
                 onClick={handleInstallClick}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 transition-all cursor-pointer"
-                title="Install UniTracker on your laptop or mobile"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 text-gray-700 hover:text-black bg-gray-100 hover:bg-gray-200 transition-all cursor-pointer"
+                title="Install UniTracker on your device"
               >
-                <Smartphone className="h-3.5 w-3.5" />
+                <Smartphone className="h-3.5 w-3.5 text-gray-500" />
                 <span>Install App</span>
               </button>
             )}
           </nav>
 
-          {/* Right Action Section: Install Shortcut (Mobile) + Auth Buttons */}
+          {/* Right Action Section: Auth Buttons */}
           <div className="flex items-center space-x-2 sm:space-x-4">
-            {/* Quick Install Pill for Mobile (Compact icon) */}
-            {!isStandalone && (
-              <button
-                type="button"
-                onClick={handleInstallClick}
-                className="lg:hidden p-2 text-emerald-700 bg-emerald-50 border border-emerald-200/80 rounded-xl hover:bg-emerald-100 transition-colors cursor-pointer"
-                title="Install UniTracker Mobile App"
-              >
-                <Smartphone className="h-4 w-4" />
-              </button>
-            )}
-
             {/* LOGGED OUT STATE */}
             <SignedOut>
               <SignInButton mode="modal">
@@ -248,20 +244,24 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
               {/* Drawer Header with Logo and Close Button */}
               <div className="flex items-center justify-between pb-3.5 border-b border-gray-100">
                 <div
-                  onClick={() => handleNavClick('dashboard')}
+                  onClick={() => handleNavClick("dashboard")}
                   className="flex items-center cursor-pointer select-none"
                 >
                   <div className="relative flex items-center justify-center w-7 h-7 mt-1 -mr-1">
                     <span
                       className="absolute font-bold text-[1rem]"
-                      style={{ color: '#000000', transform: 'rotate(-90deg)' }}
+                      style={{ color: "#000000", transform: "rotate(-90deg)" }}
                     >
                       uni
                     </span>
                   </div>
                   <h1
                     className="font-bold text-2xl m-0 tracking-tight"
-                    style={{ color: '#000000', letterSpacing: '-0.05em', lineHeight: '1' }}
+                    style={{
+                      color: "#000000",
+                      letterSpacing: "-0.05em",
+                      lineHeight: "1",
+                    }}
                   >
                     tracker
                   </h1>
@@ -281,11 +281,11 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
               <nav className="space-y-1.5">
                 <button
                   type="button"
-                  onClick={() => handleNavClick('dashboard')}
+                  onClick={() => handleNavClick("dashboard")}
                   className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    currentView === 'dashboard'
-                      ? 'bg-black text-white shadow-xs'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-black'
+                    currentView === "dashboard"
+                      ? "bg-black text-white shadow-xs"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-black"
                   }`}
                 >
                   <div className="flex items-center space-x-3">
@@ -297,35 +297,27 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
 
                 <button
                   type="button"
-                  onClick={() => handleNavClick('journey')}
+                  onClick={() => handleNavClick("journey")}
                   className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    currentView === 'journey'
-                      ? 'bg-black text-white shadow-xs'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-black'
+                    currentView === "journey"
+                      ? "bg-black text-white shadow-xs"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-black"
                   }`}
                 >
                   <div className="flex items-center space-x-3">
                     <Compass className="h-4 w-4" />
                     <span>My Journey (Roadmap)</span>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
-                      currentView === 'journey'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    }`}
-                  >
-                    P1–P7
-                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 opacity-60" />
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => handleNavClick('calculator')}
+                  onClick={() => handleNavClick("calculator")}
                   className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    currentView === 'calculator'
-                      ? 'bg-black text-white shadow-xs'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-black'
+                    currentView === "calculator"
+                      ? "bg-black text-white shadow-xs"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-black"
                   }`}
                 >
                   <div className="flex items-center space-x-3">
@@ -337,26 +329,18 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
 
                 <button
                   type="button"
-                  onClick={() => handleNavClick('deals')}
+                  onClick={() => handleNavClick("deals")}
                   className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    currentView === 'deals'
-                      ? 'bg-black text-white shadow-xs'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-black'
+                    currentView === "deals"
+                      ? "bg-black text-white shadow-xs"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-black"
                   }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <Gift className="h-4 w-4 text-amber-500" />
-                    <span>Student Deals & Perks</span>
+                    <Gift className="h-4 w-4 text-gray-600" />
+                    <span>Student Resources</span>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
-                      currentView === 'deals'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-amber-100 text-amber-800 border border-amber-200'
-                    }`}
-                  >
-                    Perks 🎁
-                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 opacity-60" />
                 </button>
 
                 {/* Contact Support in Drawer */}
@@ -369,7 +353,7 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
                   className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-100 hover:text-black transition-all cursor-pointer"
                 >
                   <div className="flex items-center space-x-3">
-                    <Mail className="h-4 w-4 text-emerald-600" />
+                    <Mail className="h-4 w-4 text-gray-600" />
                     <span>Contact & Support</span>
                   </div>
                   <ChevronRight className="h-3.5 w-3.5 opacity-60" />
@@ -383,13 +367,13 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
                       setIsMobileMenuOpen(false);
                       handleInstallClick();
                     }}
-                    className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 transition-all cursor-pointer mt-2"
+                    className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-semibold text-gray-800 bg-gray-100 hover:bg-gray-200 transition-all cursor-pointer mt-2"
                   >
                     <div className="flex items-center space-x-3">
-                      <Smartphone className="h-4 w-4 text-emerald-600" />
-                      <span>Install App (PWA)</span>
+                      <Smartphone className="h-4 w-4 text-gray-600" />
+                      <span>Install App</span>
                     </div>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-200/80 text-emerald-900">
+                    <span className="text-[10px] font-semibold text-gray-500">
                       Add to Phone
                     </span>
                   </button>
@@ -422,7 +406,9 @@ export default function Header({ currentView = 'dashboard', onNavigate, onOpenCo
 
               <SignedIn>
                 <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
-                  <span className="text-xs text-gray-700 font-semibold">Your Account</span>
+                  <span className="text-xs text-gray-700 font-semibold">
+                    Your Account
+                  </span>
                   <UserButton afterSignOutUrl="/" />
                 </div>
               </SignedIn>

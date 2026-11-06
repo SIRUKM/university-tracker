@@ -28,6 +28,9 @@ import {
   ListTodo,
   Layers,
   Info,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { PARTNER_LINKS } from "../../config/affiliateLinks";
 
@@ -392,7 +395,7 @@ export default function GermanyRoadmap({
     return "p1";
   });
 
-  // View Mode: 'focused' (single phase stepper, like VisaFlow) or 'timeline' (all stages vertical)
+  // View Mode: 'focused' (single phase stepper) or 'timeline' (all stages vertical)
   const [viewMode, setViewMode] = useState("focused");
   const [expandedTipTaskId, setExpandedTipTaskId] = useState(null);
   const [newCustomTaskText, setNewCustomTaskText] = useState("");
@@ -475,7 +478,7 @@ export default function GermanyRoadmap({
       id: `custom-${crypto.randomUUID()}`,
       label: newCustomTaskText.trim(),
       isCustom: true,
-      tip: "Custom task added to your personal roadmap.",
+      tip: "Personal task added to your relocation roadmap.",
     };
     setCustomTasks((prev) => ({
       ...prev,
@@ -513,146 +516,168 @@ export default function GermanyRoadmap({
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 w-full">
       {/* Top Header Card */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
             {onNavigateToDashboard && isStandalonePage && (
               <button
                 type="button"
                 onClick={onNavigateToDashboard}
-                className="inline-flex items-center space-x-1.5 text-xs font-semibold text-gray-500 hover:text-black mb-2 transition-colors cursor-pointer"
+                className="inline-flex items-center space-x-1.5 text-xs sm:text-sm font-semibold text-gray-500 hover:text-black mb-1 transition-colors cursor-pointer"
               >
-                <ArrowLeft className="h-3.5 w-3.5" />
+                <ArrowLeft className="h-4 w-4" />
                 <span>Back to Dashboard</span>
               </button>
             )}
-            <div className="inline-flex items-center space-x-2 text-xs font-semibold text-gray-500">
+            
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
               <span>Germany Master's Relocation Journey</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">
-              Step-by-Step Relocation Journey & Visa Checklist
+            
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-gray-900">
+              Relocation Journey & Visa Roadmap
             </h1>
-            <p className="text-xs sm:text-sm text-gray-500 max-w-2xl leading-relaxed">
-              Navigate the strict linear timeline from APS & Uni-Assist VPD to your €11,904 Blocked Account, National Visa (Type D), and City Registration (Anmeldung).
+            
+            <p className="text-sm sm:text-base text-gray-600 max-w-3xl leading-relaxed">
+              Step-by-step guidance from APS verification and Uni-Assist VPD to your €11,904 Blocked Account, National Visa (Type D), and City Registration (Anmeldung).
             </p>
           </div>
 
-          {/* Overall Progress Tracker Pill */}
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 min-w-[200px] shrink-0 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-gray-600">Total Progress</span>
-              <span className="text-emerald-700">
+          {/* Overall Progress Metric Card */}
+          <div className="bg-gray-50/80 border border-gray-200 rounded-xl p-4 sm:p-5 min-w-[240px] shrink-0 space-y-2.5">
+            <div className="flex items-center justify-between text-xs sm:text-sm font-bold">
+              <span className="text-gray-700">Total Completion</span>
+              <span className="text-emerald-700 font-extrabold">
                 {totalCompletedCount}/{allSubTasks.length} ({totalProgressPercent}%)
               </span>
             </div>
-            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+            <div className="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
               <div
-                className="bg-emerald-600 h-full rounded-full transition-all duration-300"
+                className="bg-emerald-600 h-full rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${totalProgressPercent}%` }}
               />
             </div>
-            <div className="flex items-center justify-between text-[11px] text-gray-500 pt-0.5">
-              <span>7 Linear Stages</span>
+            <div className="flex items-center justify-between text-xs text-gray-500 pt-0.5">
+              <span>7 Linear Milestones</span>
               <span>{allSubTasks.length - totalCompletedCount} remaining</span>
             </div>
           </div>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
-          <span className="text-gray-500 hidden sm:inline">
-            Select a phase below to inspect requirements & guidance
+        {/* View Mode Toggle Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-gray-100">
+          <span className="text-xs sm:text-sm text-gray-500 font-medium">
+            Select a stage below to view requirements, required documents, and expert tips
           </span>
-          <div className="inline-flex p-1 bg-gray-100 rounded-xl border border-gray-200">
+          <div className="inline-flex p-1 bg-gray-100 rounded-xl border border-gray-200 self-start sm:self-auto">
             <button
               type="button"
               onClick={() => setViewMode("focused")}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
                 viewMode === "focused"
-                  ? "bg-white text-black shadow-2xs"
+                  ? "bg-white text-gray-900 shadow-2xs"
                   : "text-gray-600 hover:text-black"
               }`}
             >
-              <ListTodo className="h-3.5 w-3.5" />
+              <ListTodo className="h-4 w-4" />
               <span>Focused Stage</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode("timeline")}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
                 viewMode === "timeline"
-                  ? "bg-white text-black shadow-2xs"
+                  ? "bg-white text-gray-900 shadow-2xs"
                   : "text-gray-600 hover:text-black"
               }`}
             >
-              <Layers className="h-3.5 w-3.5" />
+              <Layers className="h-4 w-4" />
               <span>All Stages Timeline</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Horizontal Stage Stepper Bar (VisaFlow / SaaS Style) */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-2.5 shadow-xs overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1.5 min-w-max">
-          {ROADMAP_PHASES.map((phase, idx) => {
-            const phaseTasks = [
-              ...phase.tasks,
-              ...(customTasks[phase.id] || []),
-            ];
-            const phaseDone = phaseTasks.filter((t) =>
-              completedStepIds.includes(t.id)
-            ).length;
-            const isCompleted = phaseTasks.length > 0 && phaseDone === phaseTasks.length;
-            const isActive = activePhaseId === phase.id && viewMode === "focused";
+      {/* Connected Milestone Stepper Track */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-xs">
+        <div className="relative">
+          <div className="overflow-x-auto no-scrollbar pb-2 pt-1">
+            <div className="flex items-center min-w-[760px] justify-between relative px-2">
+              {/* Background Connective Line */}
+              <div className="absolute top-5 left-10 right-10 h-0.5 bg-gray-200 -z-0 pointer-events-none" />
 
-            return (
-              <button
-                key={phase.id}
-                type="button"
-                onClick={() => {
-                  setActivePhaseId(phase.id);
-                  setViewMode("focused");
-                }}
-                className={`flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
-                  isActive
-                    ? "bg-black text-white border-black shadow-xs ring-2 ring-black/10"
-                    : isCompleted
-                    ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100/70"
-                    : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black"
-                }`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    isActive
-                      ? "bg-white text-black"
-                      : isCompleted
-                      ? "bg-emerald-600 text-white"
-                      : "bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  {isCompleted ? <Check className="h-3 w-3 stroke-[3]" /> : phase.shortCode}
-                </div>
-                <div className="text-left">
-                  <div className="leading-tight">{phase.shortTitle}</div>
-                  <div
-                    className={`text-[10px] font-normal ${
-                      isActive ? "text-gray-300" : "text-gray-400"
-                    }`}
-                  >
-                    {phaseDone}/{phaseTasks.length} tasks
+              {ROADMAP_PHASES.map((phase, idx) => {
+                const phaseTasks = [
+                  ...phase.tasks,
+                  ...(customTasks[phase.id] || []),
+                ];
+                const phaseDone = phaseTasks.filter((t) =>
+                  completedStepIds.includes(t.id)
+                ).length;
+                const isCompleted = phaseTasks.length > 0 && phaseDone === phaseTasks.length;
+                const isActive = activePhaseId === phase.id && viewMode === "focused";
+
+                return (
+                  <div key={phase.id} className="flex-1 flex flex-col items-center relative z-10 group">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActivePhaseId(phase.id);
+                        setViewMode("focused");
+                      }}
+                      className="flex flex-col items-center cursor-pointer focus:outline-none"
+                    >
+                      {/* Node Circle */}
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-200 border-2 ${
+                          isCompleted
+                            ? "bg-emerald-600 border-emerald-600 text-white shadow-xs group-hover:bg-emerald-700"
+                            : isActive
+                            ? "bg-gray-950 border-gray-950 text-white ring-4 ring-gray-100 shadow-sm"
+                            : "bg-white border-gray-300 text-gray-600 group-hover:border-gray-500 group-hover:text-gray-900"
+                        }`}
+                      >
+                        {isCompleted ? (
+                          <Check className="h-4 w-4 stroke-[3]" />
+                        ) : (
+                          <span>{phase.shortCode}</span>
+                        )}
+                      </div>
+
+                      {/* Node Title & Task Counter */}
+                      <div className="mt-2 text-center">
+                        <div
+                          className={`text-xs font-semibold tracking-tight transition-colors ${
+                            isActive
+                              ? "text-gray-950 font-bold"
+                              : isCompleted
+                              ? "text-emerald-800"
+                              : "text-gray-600 group-hover:text-gray-900"
+                          }`}
+                        >
+                          {phase.shortTitle}
+                        </div>
+                        <div className="text-[11px] text-gray-400 mt-0.5 font-medium">
+                          {isCompleted ? (
+                            <span className="text-emerald-700 font-semibold">Done</span>
+                          ) : (
+                            `${phaseDone}/${phaseTasks.length} tasks`
+                          )}
+                        </div>
+                      </div>
+                    </button>
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* VIEW MODE 1: FOCUSED STAGE (VisaFlow P1-P7 Style) */}
+      {/* VIEW MODE 1: FOCUSED STAGE */}
       {viewMode === "focused" && (
         <div className="space-y-6">
           <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
@@ -660,14 +685,14 @@ export default function GermanyRoadmap({
             <div className="space-y-3 pb-5 border-b border-gray-100">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center space-x-2">
-                  <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-gray-900 text-white">
+                  <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-gray-950 text-white">
                     {activePhase.shortCode}
                   </span>
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Phase {currentPhaseIndex + 1} of {ROADMAP_PHASES.length}
+                    Stage {currentPhaseIndex + 1} of {ROADMAP_PHASES.length}
                   </span>
                   <span className="text-gray-300">•</span>
-                  <span className="text-xs font-medium text-gray-500 flex items-center space-x-1">
+                  <span className="text-xs font-medium text-gray-600 flex items-center space-x-1.5 bg-gray-50 border border-gray-200/80 px-2.5 py-1 rounded-md">
                     <Clock className="h-3.5 w-3.5 text-gray-400" />
                     <span>{activePhase.timeframe}</span>
                   </span>
@@ -706,7 +731,7 @@ export default function GermanyRoadmap({
                 <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${
-                      activePhasePercent === 100 ? "bg-emerald-600" : "bg-black"
+                      activePhasePercent === 100 ? "bg-emerald-600" : "bg-gray-900"
                     }`}
                     style={{ width: `${activePhasePercent}%` }}
                   />
@@ -725,7 +750,7 @@ export default function GermanyRoadmap({
                 </span>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {activePhaseTasks.map((task) => {
                   const checked = completedStepIds.includes(task.id);
                   const taskDate = taskDates[task.id];
@@ -734,111 +759,124 @@ export default function GermanyRoadmap({
                   return (
                     <div
                       key={task.id}
-                      className={`border rounded-xl p-4 transition-all ${
+                      className={`border rounded-xl p-4 sm:p-5 transition-all duration-200 ${
                         checked
-                          ? "bg-gray-50/70 border-gray-200 opacity-90"
+                          ? "bg-gray-50/70 border-gray-200 opacity-80"
                           : "bg-white border-gray-200 hover:border-gray-300 shadow-2xs"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        {/* Checkbox & Task Name */}
-                        <div className="flex items-start space-x-3 flex-1 min-w-0">
+                        {/* Checkbox & Task Information */}
+                        <div className="flex items-start space-x-3.5 flex-1 min-w-0">
                           <button
                             type="button"
                             onClick={() => toggleSubTask(task.id)}
-                            className="mt-0.5 shrink-0 text-gray-400 hover:text-black transition-colors cursor-pointer"
+                            className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                              checked
+                                ? "bg-emerald-600 border-emerald-600 text-white"
+                                : "border-gray-300 hover:border-gray-500 bg-white"
+                            }`}
+                            aria-label={checked ? "Mark task as incomplete" : "Mark task as complete"}
                           >
-                            {checked ? (
-                              <CheckCircle2 className="h-5 w-5 text-emerald-600 fill-emerald-50" />
-                            ) : (
-                              <Circle className="h-5 w-5 text-gray-300 hover:text-gray-400" />
-                            )}
+                            {checked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                           </button>
 
-                          <div className="space-y-1 flex-1 min-w-0">
+                          <div className="space-y-1.5 flex-1 min-w-0">
                             <span
                               onClick={() => toggleSubTask(task.id)}
-                              className={`text-sm font-semibold block cursor-pointer select-none leading-snug ${
+                              className={`text-sm sm:text-base font-semibold block cursor-pointer select-none leading-snug ${
                                 checked ? "line-through text-gray-400" : "text-gray-900"
                               }`}
                             >
                               {task.label}
                             </span>
 
-                            {/* Required Documents Pill */}
+                            {/* Document requirement chip */}
                             {task.docs && (
-                              <div className="flex items-center space-x-1.5 text-[11px] text-gray-500 pt-0.5">
-                                <FileText className="h-3 w-3 text-gray-400 shrink-0" />
-                                <span className="font-medium text-gray-700">Documents:</span>
+                              <div className="inline-flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-200/80 px-2.5 py-1 rounded-md max-w-full">
+                                <FileText className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                <span className="font-semibold text-gray-700 shrink-0">Required:</span>
                                 <span className="truncate">{task.docs}</span>
+                              </div>
+                            )}
+
+                            {/* Practical Guidance Toggle Button */}
+                            {task.tip && (
+                              <div className="pt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedTipTaskId(isTipOpen ? null : task.id)}
+                                  className="inline-flex items-center space-x-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 transition-colors cursor-pointer"
+                                >
+                                  <Info className="h-3.5 w-3.5" />
+                                  <span>{isTipOpen ? "Hide guidance" : "Official guidance & regulations"}</span>
+                                  {isTipOpen ? (
+                                    <ChevronUp className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3" />
+                                  )}
+                                </button>
                               </div>
                             )}
                           </div>
                         </div>
 
-                        {/* Actions (Target Date & Delete if custom) */}
+                        {/* Action controls (Date picker & delete if custom) */}
                         <div className="flex items-center space-x-2 shrink-0">
-                          {/* Calendar Date Picker */}
                           <div className="relative inline-flex items-center">
                             <input
                               type="date"
                               value={taskDate || ""}
                               onChange={(e) => handleSetTaskDate(task.id, e.target.value)}
                               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
-                              title={taskDate ? `Date: ${taskDate}` : "Set target completion date"}
+                              title={taskDate ? `Target Date: ${taskDate}` : "Set target completion date"}
                             />
                             <div
-                              className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                              className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                 taskDate
-                                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                  : "bg-gray-50 hover:bg-gray-100 text-gray-500 border border-gray-200"
+                                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold"
+                                  : "bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200"
                               }`}
                             >
-                              <Calendar className="h-3 w-3 text-gray-400" />
-                              <span>{taskDate ? formatDisplayDate(taskDate) : "Set Date"}</span>
+                              <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                              <span>{taskDate ? formatDisplayDate(taskDate) : "Set Target Date"}</span>
+                              {taskDate && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSetTaskDate(task.id, "");
+                                  }}
+                                  className="relative z-20 hover:text-red-600 ml-0.5 cursor-pointer"
+                                  title="Clear date"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
                             </div>
                           </div>
 
-                          {/* Guidance Dropdown Toggle */}
-                          {task.tip && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setExpandedTipTaskId(isTipOpen ? null : task.id)
-                              }
-                              className={`p-1.5 rounded-lg border text-xs transition-colors cursor-pointer ${
-                                isTipOpen
-                                  ? "bg-gray-100 text-black border-gray-300"
-                                  : "text-gray-400 hover:text-black border-transparent hover:bg-gray-50"
-                              }`}
-                              title="View official guidance & tips"
-                            >
-                              <Info className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-
-                          {/* Delete custom task */}
                           {task.isCustom && (
                             <button
                               type="button"
                               onClick={() => handleDeleteCustomTask(activePhase.id, task.id)}
-                              className="text-gray-400 hover:text-red-600 p-1 rounded-md transition-colors cursor-pointer"
-                              title="Delete task"
+                              className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                              title="Delete custom task"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           )}
                         </div>
                       </div>
 
-                      {/* Expandable Tip / Guidance */}
+                      {/* Expandable Guidance Box */}
                       {isTipOpen && task.tip && (
-                        <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600 leading-relaxed bg-gray-50/80 -mx-4 -mb-4 p-3.5 rounded-b-xl space-y-1">
-                          <div className="font-semibold text-gray-800 flex items-center space-x-1">
-                            <Info className="h-3 w-3 text-blue-600" />
-                            <span>Practical Guidance & Regulations:</span>
+                        <div className="mt-3.5 p-3.5 sm:p-4 rounded-xl bg-blue-50/70 border border-blue-100/90 text-xs sm:text-sm text-slate-700 space-y-1">
+                          <div className="font-semibold text-blue-900 flex items-center space-x-1.5">
+                            <Info className="h-4 w-4 text-blue-600 shrink-0" />
+                            <span>Practical Advice & Guidelines</span>
                           </div>
-                          <p>{task.tip}</p>
+                          <p className="text-slate-600 leading-relaxed sm:pl-5.5">{task.tip}</p>
                         </div>
                       )}
                     </div>
@@ -846,15 +884,15 @@ export default function GermanyRoadmap({
                 })}
               </div>
 
-              {/* Add Custom Task Input */}
+              {/* Add Custom Task Form */}
               {isAddingCustom ? (
                 <div className="flex items-center space-x-2 pt-2">
                   <input
                     type="text"
                     value={newCustomTaskText}
                     onChange={(e) => setNewCustomTaskText(e.target.value)}
-                    placeholder="E.g., Follow up with Professor Schmidt for LOR..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-black"
+                    placeholder="E.g., Request recommendation letter from Prof. Schmidt..."
+                    className="flex-1 px-3.5 py-2.5 border border-gray-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-black"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleAddCustomTask();
                       if (e.key === "Escape") setIsAddingCustom(false);
@@ -864,14 +902,14 @@ export default function GermanyRoadmap({
                   <button
                     type="button"
                     onClick={handleAddCustomTask}
-                    className="px-3.5 py-2 bg-black hover:bg-gray-800 text-white rounded-xl text-xs font-semibold cursor-pointer"
+                    className="px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs sm:text-sm font-semibold cursor-pointer transition-colors"
                   >
                     Add
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsAddingCustom(false)}
-                    className="px-3 py-2 text-gray-500 hover:text-black rounded-xl text-xs font-semibold cursor-pointer"
+                    className="px-3.5 py-2.5 text-gray-500 hover:text-black rounded-xl text-xs sm:text-sm font-semibold cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -880,10 +918,10 @@ export default function GermanyRoadmap({
                 <button
                   type="button"
                   onClick={() => setIsAddingCustom(true)}
-                  className="inline-flex items-center space-x-1.5 text-xs font-semibold text-gray-500 hover:text-black px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer mt-1"
+                  className="inline-flex items-center space-x-1.5 text-xs sm:text-sm font-semibold text-gray-500 hover:text-black px-2.5 py-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer mt-1"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Add personal task to {activePhase.shortCode}...</span>
+                  <Plus className="h-4 w-4" />
+                  <span>Add personal task to {activePhase.shortTitle}...</span>
                 </button>
               )}
             </div>
@@ -891,91 +929,97 @@ export default function GermanyRoadmap({
             {/* Seamless Native Resource Integration (For Phase 4 & Phase 6) */}
             {activePhase.monetizationType === "blocked_and_forex" && (
               <div className="pt-6 border-t border-gray-200 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900">
-                      Approved Blocked Account Providers & Zero-Fee Forex
+                    <h3 className="text-sm font-bold text-gray-900">
+                      Official Blocked Account Providers & Zero-Fee Forex
                     </h3>
-                    <p className="text-xs text-gray-500">
-                      Official Federal Foreign Office approved providers & bank-transfer services:
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      German Federal Foreign Office approved providers & bank-transfer services:
                     </p>
                   </div>
                   {onNavigateToDeals && (
                     <button
                       type="button"
                       onClick={onNavigateToDeals}
-                      className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center space-x-1 cursor-pointer"
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center space-x-1 cursor-pointer self-start sm:self-auto"
                     >
-                      <span>Compare All Perks</span>
-                      <ChevronRight className="h-3 w-3" />
+                      <span>Compare All Student Perks</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                   {PARTNER_LINKS.blockedAccounts.map((p) => (
-                    <a
+                    <div
                       key={p.id}
-                      href={p.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white hover:border-black transition-all flex flex-col justify-between gap-3 group"
+                      className="p-4 rounded-xl border border-gray-200 bg-white hover:border-gray-400 transition-all flex flex-col justify-between gap-3 shadow-2xs"
                     >
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-gray-900 group-hover:underline">
+                          <span className="text-sm font-bold text-gray-900">
                             {p.name}
                           </span>
-                          <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-black" />
+                          <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            {p.tag}
+                          </span>
                         </div>
-                        <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          {p.tag}
-                        </span>
-                        <p className="text-[11px] text-gray-500 leading-snug">
+                        <p className="text-xs text-gray-600 leading-relaxed">
                           {p.description}
                         </p>
                       </div>
-                      <div className="text-[11px] font-bold text-emerald-700 pt-1 border-t border-gray-100">
-                        {p.perk}
+                      
+                      <div className="space-y-3 pt-2 border-t border-gray-100">
+                        <div className="text-xs font-semibold text-emerald-700">
+                          {p.perk}
+                        </div>
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 rounded-lg text-xs font-bold bg-gray-900 hover:bg-black text-white transition-colors"
+                        >
+                          <span>Open {p.name}</span>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
                       </div>
-                    </a>
+                    </div>
                   ))}
                 </div>
 
                 {/* Forex Transfer Options */}
-                <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <div className="text-xs font-bold text-blue-900 flex items-center space-x-1.5">
-                      <CircleDollarSign className="h-3.5 w-3.5 text-blue-700" />
+                <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="text-sm font-bold text-blue-950 flex items-center space-x-2">
+                      <CircleDollarSign className="h-4 w-4 text-blue-700" />
                       <span>Zero-Markup Money Transfer (₹10–12 Lakhs)</span>
                     </div>
-                    <p className="text-xs text-blue-800/80">
-                      Transferring blocked amount via Wise or Remitly avoids traditional bank telegraphic markup (saves up to ₹25,000).
+                    <p className="text-xs text-blue-900/80 leading-relaxed">
+                      Transferring the €11,904 blocked amount via Wise avoids high bank telegraphic margins and hidden foreign exchange spreads, saving up to ₹25,000 in fees.
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <a
-                      href={PARTNER_LINKS.forexTransfer[0]?.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-black hover:bg-gray-800 text-white rounded-lg text-xs font-bold inline-flex items-center space-x-1 transition-all"
-                    >
-                      <span>Transfer with Wise</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
+                  <a
+                    href={PARTNER_LINKS.forexTransfer[0]?.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold inline-flex items-center justify-center space-x-1.5 shrink-0 transition-colors shadow-xs"
+                  >
+                    <span>Transfer with Wise</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
                 </div>
               </div>
             )}
 
             {activePhase.monetizationType === "departure_deals" && (
               <div className="pt-6 border-t border-gray-200 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900">
+                    <h3 className="text-sm font-bold text-gray-900">
                       Student Travel Discounts, German eSIM & Housing
                     </h3>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 mt-0.5">
                       Essential relocation partners for international students moving to Germany:
                     </p>
                   </div>
@@ -983,86 +1027,95 @@ export default function GermanyRoadmap({
                     <button
                       type="button"
                       onClick={onNavigateToDeals}
-                      className="text-xs font-bold text-sky-700 hover:text-sky-900 flex items-center space-x-1 cursor-pointer"
+                      className="text-xs font-bold text-sky-700 hover:text-sky-900 flex items-center space-x-1 cursor-pointer self-start sm:self-auto"
                     >
                       <span>All Student Deals</span>
-                      <ChevronRight className="h-3 w-3" />
+                      <ChevronRight className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   {/* Flight */}
-                  <a
-                    href={(PARTNER_LINKS.flightDeals || PARTNER_LINKS.flights || [])[0]?.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white hover:border-black transition-all flex flex-col justify-between gap-3 group"
-                  >
-                    <div className="space-y-1">
+                  <div className="p-4 rounded-xl border border-gray-200 bg-white hover:border-gray-400 transition-all flex flex-col justify-between gap-3 shadow-2xs">
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-900 flex items-center space-x-1.5">
-                          <Plane className="h-3 w-3 text-sky-600" />
+                        <span className="text-sm font-bold text-gray-900 flex items-center space-x-1.5">
+                          <Plane className="h-4 w-4 text-sky-600" />
                           <span>Student Flights</span>
                         </span>
-                        <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-black" />
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
+                          Extra 40kg Luggage
+                        </span>
                       </div>
-                      <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200">
-                        Extra 40kg Luggage
-                      </span>
-                      <p className="text-[11px] text-gray-500 leading-snug">
-                        StudentUniverse negotiated fares with Lufthansa, Emirates, and Qatar Airways.
+                      <p className="text-xs text-gray-600 leading-relaxed">
+                        StudentUniverse negotiated student airline fares with Lufthansa, Emirates, and Qatar Airways including 2x23kg checked bags.
                       </p>
                     </div>
-                  </a>
+                    <a
+                      href={(PARTNER_LINKS.flightDeals || PARTNER_LINKS.flights || [])[0]?.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 rounded-lg text-xs font-bold bg-gray-900 hover:bg-black text-white transition-colors mt-2"
+                    >
+                      <span>Book Student Flight</span>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
 
                   {/* eSIM */}
-                  <a
-                    href={PARTNER_LINKS.simCards[0]?.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white hover:border-black transition-all flex flex-col justify-between gap-3 group"
-                  >
-                    <div className="space-y-1">
+                  <div className="p-4 rounded-xl border border-gray-200 bg-white hover:border-gray-400 transition-all flex flex-col justify-between gap-3 shadow-2xs">
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-900 flex items-center space-x-1.5">
-                          <Smartphone className="h-3 w-3 text-purple-600" />
+                        <span className="text-sm font-bold text-gray-900 flex items-center space-x-1.5">
+                          <Smartphone className="h-4 w-4 text-purple-600" />
                           <span>Airalo German eSIM</span>
                         </span>
-                        <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-black" />
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
+                          Instant 5G Data
+                        </span>
                       </div>
-                      <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
-                        Instant 5G on Landing
-                      </span>
-                      <p className="text-[11px] text-gray-500 leading-snug">
-                        Instant digital activation before takeoff; zero physical SIM swapping.
+                      <p className="text-xs text-gray-600 leading-relaxed">
+                        Instant digital activation before takeoff; provides high-speed data the moment you touch down in Frankfurt or Munich.
                       </p>
                     </div>
-                  </a>
+                    <a
+                      href={PARTNER_LINKS.simCards[0]?.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 rounded-lg text-xs font-bold bg-gray-900 hover:bg-black text-white transition-colors mt-2"
+                    >
+                      <span>Get German eSIM</span>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
 
                   {/* Housing */}
-                  <a
-                    href={PARTNER_LINKS.housing[0]?.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-white hover:border-black transition-all flex flex-col justify-between gap-3 group"
-                  >
-                    <div className="space-y-1">
+                  <div className="p-4 rounded-xl border border-gray-200 bg-white hover:border-gray-400 transition-all flex flex-col justify-between gap-3 shadow-2xs">
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-900 flex items-center space-x-1.5">
-                          <Home className="h-3 w-3 text-amber-600" />
+                        <span className="text-sm font-bold text-gray-900 flex items-center space-x-1.5">
+                          <Home className="h-4 w-4 text-amber-600" />
                           <span>AmberStudent Housing</span>
                         </span>
-                        <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-black" />
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                          Anmeldung Eligible
+                        </span>
                       </div>
-                      <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                        Anmeldung Eligible
-                      </span>
-                      <p className="text-[11px] text-gray-500 leading-snug">
-                        100% verified student private rooms and studios with landlord registration proof.
+                      <p className="text-xs text-gray-600 leading-relaxed">
+                        100% verified student private rooms and apartments with official landlord registration confirmation (Wohnungsgeberbescheinigung).
                       </p>
                     </div>
-                  </a>
+                    <a
+                      href={PARTNER_LINKS.housing[0]?.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full inline-flex items-center justify-center space-x-1.5 py-2 px-3 rounded-lg text-xs font-bold bg-gray-900 hover:bg-black text-white transition-colors mt-2"
+                    >
+                      <span>Browse Student Housing</span>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
@@ -1073,28 +1126,28 @@ export default function GermanyRoadmap({
                 type="button"
                 onClick={goToPrevPhase}
                 disabled={currentPhaseIndex === 0}
-                className={`inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                className={`inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${
                   currentPhaseIndex === 0
                     ? "opacity-30 cursor-not-allowed text-gray-400"
                     : "bg-gray-100 hover:bg-gray-200 text-gray-800"
                 }`}
               >
                 <ChevronLeft className="h-4 w-4" />
-                <span>Previous Phase</span>
+                <span>Previous Stage</span>
               </button>
 
-              <div className="text-xs text-gray-400 font-medium hidden sm:inline">
-                Phase {currentPhaseIndex + 1} of {ROADMAP_PHASES.length}
+              <div className="text-xs sm:text-sm text-gray-500 font-medium hidden sm:inline">
+                Stage {currentPhaseIndex + 1} of {ROADMAP_PHASES.length}
               </div>
 
               <button
                 type="button"
                 onClick={goToNextPhase}
                 disabled={currentPhaseIndex === ROADMAP_PHASES.length - 1}
-                className={`inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                className={`inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${
                   currentPhaseIndex === ROADMAP_PHASES.length - 1
                     ? "opacity-30 cursor-not-allowed text-gray-400"
-                    : "bg-black hover:bg-gray-800 text-white shadow-xs"
+                    : "bg-gray-900 hover:bg-black text-white shadow-xs"
                 }`}
               >
                 <span>Next: {ROADMAP_PHASES[currentPhaseIndex + 1]?.shortTitle || "Completed"}</span>
@@ -1105,7 +1158,7 @@ export default function GermanyRoadmap({
         </div>
       )}
 
-      {/* VIEW MODE 2: ALL STAGES VERTICAL TIMELINE */}
+      {/* VIEW MODE 2: ALL STAGES TIMELINE */}
       {viewMode === "timeline" && (
         <div className="space-y-4">
           {ROADMAP_PHASES.map((phase, idx) => {
@@ -1124,22 +1177,22 @@ export default function GermanyRoadmap({
                 key={phase.id}
                 className={`bg-white border rounded-2xl p-5 sm:p-6 transition-all ${
                   isCurrent
-                    ? "border-black shadow-xs ring-1 ring-black/10"
+                    ? "border-gray-950 shadow-xs ring-1 ring-gray-950/10"
                     : "border-gray-200 hover:border-gray-300"
                 }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-gray-100">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3.5">
                     <div
-                      className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold ${
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${
                         isCompleted
                           ? "bg-emerald-600 text-white"
                           : isCurrent
-                          ? "bg-black text-white"
+                          ? "bg-gray-950 text-white"
                           : "bg-gray-100 text-gray-700"
                       }`}
                     >
-                      {isCompleted ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : phase.shortCode}
+                      {isCompleted ? <Check className="h-4 w-4 stroke-[3]" /> : phase.shortCode}
                     </div>
                     <div>
                       <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -1175,7 +1228,7 @@ export default function GermanyRoadmap({
                 </div>
 
                 {/* Tasks List */}
-                <div className="pt-4 space-y-2">
+                <div className="pt-4 space-y-2.5">
                   {phaseTasks.map((task) => {
                     const checked = completedStepIds.includes(task.id);
                     return (
@@ -1184,13 +1237,17 @@ export default function GermanyRoadmap({
                         onClick={() => toggleSubTask(task.id)}
                         className="flex items-center space-x-3 py-1 cursor-pointer select-none group"
                       >
-                        {checked ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                        ) : (
-                          <Circle className="h-4 w-4 text-gray-300 group-hover:text-gray-400 shrink-0" />
-                        )}
+                        <div
+                          className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                            checked
+                              ? "bg-emerald-600 border-emerald-600 text-white"
+                              : "border-gray-300 group-hover:border-gray-400 bg-white"
+                          }`}
+                        >
+                          {checked && <Check className="h-3 w-3 stroke-[3]" />}
+                        </div>
                         <span
-                          className={`text-xs font-medium leading-snug ${
+                          className={`text-xs sm:text-sm font-medium leading-snug ${
                             checked ? "line-through text-gray-400" : "text-gray-800"
                           }`}
                         >

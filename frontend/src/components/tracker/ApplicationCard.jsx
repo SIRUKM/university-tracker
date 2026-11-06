@@ -246,6 +246,52 @@ const getIntakeBadge = (intakeStr) => {
   return null;
 };
 
+const getOpeningBadge = (openingDateStr, deadlineStr) => {
+  if (!openingDateStr) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // If deadline passed, don't show opening badge
+  if (deadlineStr) {
+    const deadlineDate = new Date(`${deadlineStr}T00:00:00`);
+    if (!isNaN(deadlineDate.getTime()) && deadlineDate < today) {
+      return null;
+    }
+  }
+
+  const openingDate = new Date(`${openingDateStr}T00:00:00`);
+  if (isNaN(openingDate.getTime())) return null;
+
+  const diffDays = Math.ceil((openingDate - today) / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) {
+    return {
+      text: "Open Now",
+      classes: "bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold",
+      isOpen: true,
+    };
+  }
+  if (diffDays === 1) {
+    return {
+      text: "Opens Tomorrow",
+      classes: "bg-blue-50 text-blue-700 border-blue-200 font-medium",
+      isOpen: false,
+    };
+  }
+  if (diffDays <= 30) {
+    return {
+      text: `Opens in ${diffDays}d`,
+      classes: "bg-blue-50 text-blue-700 border-blue-200 font-medium",
+      isOpen: false,
+    };
+  }
+  return {
+    text: `Opens ${openingDateStr}`,
+    classes: "bg-gray-100 text-gray-700 border-gray-200 font-medium",
+    isOpen: false,
+  };
+};
+
 const getShiftedCalendarDate = (dateStr, daysOffset = 0) => {
   const date = new Date(`${dateStr}T00:00:00`);
   date.setDate(date.getDate() + daysOffset);
@@ -311,6 +357,7 @@ export default function ApplicationCard({
   const currentPriority =
     priorityConfig[formData.priority] || priorityConfig["1"];
   const deadlineBadge = getDeadlineBadge(formData.deadline);
+  const openingBadge = getOpeningBadge(formData.openingDate, formData.deadline);
   const intakeBadge = getIntakeBadge(formData.intake);
   const isSummer = (formData.intake || "").toLowerCase().includes("summer");
   const isWinter = (formData.intake || "").toLowerCase().includes("winter");
@@ -734,6 +781,20 @@ export default function ApplicationCard({
 
           {/* Remaining Days, Remind Me & To-Do List buttons */}
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {/* Dynamic Opening Status Badge (e.g. Open Now / Opens in Xd) */}
+            {openingBadge && (
+              <span
+                className={`px-2.5 py-0.5 rounded-full border text-xs flex items-center space-x-1 ${openingBadge.classes}`}
+              >
+                {openingBadge.isOpen ? (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse"></span>
+                ) : (
+                  <Calendar className="h-3 w-3 mr-1 text-blue-500" />
+                )}
+                <span>{openingBadge.text}</span>
+              </span>
+            )}
+
             {/* Dynamic Color-Coded Deadline Badge (Remaining days) */}
             {deadlineBadge && (
               <span

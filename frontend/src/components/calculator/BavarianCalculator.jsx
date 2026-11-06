@@ -180,37 +180,37 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-10 py-2">
+    <div className="w-full space-y-10 py-2">
       
       {/* Hero Header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
-          <Calculator className="h-3.5 w-3.5" />
+        <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs sm:text-sm font-semibold">
+          <Calculator className="h-4 w-4" />
           <span>Official German Conversion Tool</span>
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-gray-900">
           Modified Bavarian Formula Calculator
         </h1>
-        <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
+        <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto">
           Convert your international CGPA or percentage into the official German grading scale (1.0 – 4.0) used by Uni-Assist and German public universities.
         </p>
       </div>
 
       {/* Main Calculator Card Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Left Input Form (7 cols) */}
-        <div className="lg:col-span-7 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="lg:col-span-7 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
           
           {/* Preset Buttons */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-              <Scale className="h-3.5 w-3.5" />
+          <div className="space-y-3">
+            <label className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+              <Scale className="h-4 w-4 text-gray-500" />
               <span>Select Your Country / Grading System</span>
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {SCALE_PRESETS.map((preset) => {
                 const isSelected = selectedPresetId === preset.id;
                 return (
@@ -218,15 +218,15 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
                     key={preset.id}
                     type="button"
                     onClick={() => handleSelectPreset(preset)}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
                       isSelected
                         ? "border-black bg-gray-900 text-white shadow-xs"
                         : "border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-800"
                     }`}
                   >
-                    <div className="text-xs font-bold">{preset.name}</div>
+                    <div className="text-sm font-bold">{preset.name}</div>
                     <div
-                      className={`text-[11px] mt-0.5 truncate ${
+                      className={`text-xs mt-1 truncate ${
                         isSelected ? "text-gray-300" : "text-gray-500"
                       }`}
                     >
@@ -238,16 +238,16 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-5 space-y-4">
+          <div className="border-t border-gray-100 pt-6 space-y-5">
             
             {/* Input 1: Your Score (Nd) */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                <label className="text-sm sm:text-base font-bold text-gray-800 flex items-center gap-1">
                   <span>Your Score / CGPA (N<sub className="font-semibold">d</sub>)</span>
                   <span className="text-red-500">*</span>
                 </label>
-                <span className="text-[11px] text-gray-400">Your final or current score</span>
+                <span className="text-xs sm:text-sm text-gray-400">Your final or current score</span>
               </div>
               <input
                 type="number"
@@ -258,14 +258,14 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
                   setSelectedPresetId("custom");
                 }}
                 placeholder="e.g. 8.45 or 76.5"
-                className="w-full p-3 bg-gray-50/70 border border-gray-200 rounded-xl text-base font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                className="w-full p-3.5 sm:p-4 bg-gray-50/70 border border-gray-200 rounded-xl text-base sm:text-lg font-bold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-black transition-all"
               />
             </div>
 
             {/* Input 2 & 3: Max and Min Pass */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <label className="text-sm sm:text-base font-bold text-gray-800 flex items-center gap-1">
                   <span>Maximum Score (N<sub className="font-semibold">max</sub>)</span>
                   <span className="text-red-500">*</span>
                 </label>
@@ -278,13 +278,13 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
                     setSelectedPresetId("custom");
                   }}
                   placeholder="e.g. 10.0 or 100"
-                  className="w-full p-2.5 bg-gray-50/70 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                  className="w-full p-3 sm:p-3.5 bg-gray-50/70 border border-gray-200 rounded-xl text-base font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-black transition-all"
                 />
-                <span className="text-[11px] text-gray-500 block">Maximum possible grade in your scale</span>
+                <span className="text-xs text-gray-500 block">Maximum possible grade in your scale</span>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+              <div className="space-y-2">
+                <label className="text-sm sm:text-base font-bold text-gray-800 flex items-center gap-1">
                   <span>Minimum Passing Score (N<sub className="font-semibold">min</sub>)</span>
                   <span className="text-red-500">*</span>
                 </label>
@@ -297,9 +297,9 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
                     setSelectedPresetId("custom");
                   }}
                   placeholder="e.g. 4.0 or 40"
-                  className="w-full p-2.5 bg-gray-50/70 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                  className="w-full p-3 sm:p-3.5 bg-gray-50/70 border border-gray-200 rounded-xl text-base font-semibold text-gray-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-black transition-all"
                 />
-                <span className="text-[11px] text-gray-500 block">Lowest grade required to pass (not zero!)</span>
+                <span className="text-xs text-gray-500 block">Lowest grade required to pass (not zero!)</span>
               </div>
             </div>
 
@@ -307,9 +307,9 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
               <button
                 type="button"
                 onClick={handleReset}
-                className="text-xs font-semibold text-gray-500 hover:text-black flex items-center gap-1 transition-colors cursor-pointer"
+                className="text-sm font-semibold text-gray-500 hover:text-black flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-4 w-4" />
                 <span>Reset to Indian 10-Point default</span>
               </button>
             </div>
@@ -318,18 +318,18 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
 
         {/* Right Result Panel (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="bg-gradient-to-b from-gray-900 to-black text-white rounded-2xl p-6 shadow-md space-y-5">
+          <div className="bg-gradient-to-b from-gray-900 to-black text-white rounded-2xl p-6 sm:p-8 shadow-md space-y-6">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-400">
                 Converted German Grade
               </span>
-              <span className="text-[11px] font-semibold text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800">
+              <span className="text-xs font-semibold text-emerald-400 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-800">
                 Scale: 1.0 (Best) – 4.0 (Pass)
               </span>
             </div>
 
             {calculationResult.error ? (
-              <div className="p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-xs leading-relaxed space-y-1">
+              <div className="p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-sm leading-relaxed space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
                   <AlertTriangle className="h-4 w-4 text-red-400" />
                   <span>Calculation Alert</span>
@@ -337,39 +337,39 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
                 <p>{calculationResult.error}</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {/* Score Number Display */}
-                <div className="flex items-baseline space-x-3">
-                  <div className="text-5xl font-extrabold tracking-tight text-white">
+                <div className="flex items-baseline space-x-4">
+                  <div className="text-6xl sm:text-7xl font-extrabold tracking-tight text-white">
                     {calculationResult.rounded}
                   </div>
-                  <div className="text-xs text-gray-400 font-medium">
+                  <div className="text-sm text-gray-400 font-medium">
                     (Exact: {calculationResult.precise})
                   </div>
                 </div>
 
                 {/* Classification Badge */}
-                <div className={`p-3 rounded-xl border flex items-start space-x-2.5 ${calculationResult.classification.color}`}>
-                  <Award className="h-5 w-5 shrink-0 mt-0.5" />
+                <div className={`p-4 rounded-xl border flex items-start space-x-3 ${calculationResult.classification.color}`}>
+                  <Award className="h-6 w-6 shrink-0 mt-0.5" />
                   <div>
-                    <div className="text-xs font-extrabold uppercase tracking-wider">
+                    <div className="text-sm sm:text-base font-extrabold uppercase tracking-wider">
                       {calculationResult.classification.label} • {calculationResult.classification.english}
                     </div>
-                    <p className="text-[11px] mt-0.5 leading-relaxed opacity-90">
+                    <p className="text-xs sm:text-sm mt-1 leading-relaxed opacity-90">
                       {calculationResult.classification.description}
                     </p>
                   </div>
                 </div>
 
                 {/* Visual Progress Bar (1.0 is far right/green, 4.0 is far left) */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
+                <div className="space-y-2 pt-1">
+                  <div className="flex justify-between text-xs text-gray-400 font-semibold">
                     <span>1.0 (Best)</span>
                     <span>2.0</span>
                     <span>3.0</span>
                     <span>4.0 (Pass)</span>
                   </div>
-                  <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden relative">
+                  <div className="w-full bg-gray-800 h-2.5 rounded-full overflow-hidden relative">
                     <div
                       className="bg-gradient-to-r from-emerald-400 via-yellow-400 to-red-400 h-full transition-all duration-500 rounded-full"
                       style={{
@@ -386,11 +386,11 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-2">
+                <div className="flex items-center gap-3 pt-2">
                   <button
                     type="button"
                     onClick={handleCopy}
-                    className="flex-1 bg-white hover:bg-gray-100 text-black text-xs font-bold py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center space-x-1.5 cursor-pointer"
+                    className="flex-1 bg-white hover:bg-gray-100 text-black text-sm font-bold py-3 rounded-xl transition-all shadow-sm flex items-center justify-center space-x-2 cursor-pointer"
                   >
                     {copied ? (
                       <>
@@ -408,11 +408,11 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
                     <button
                       type="button"
                       onClick={onNavigateToDashboard}
-                      className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center space-x-1 transition-all cursor-pointer"
+                      className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-semibold flex items-center space-x-1.5 transition-all cursor-pointer"
                       title="Return to UniTracker Dashboard"
                     >
                       <span>Dashboard</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
+                      <ArrowRight className="h-4 w-4" />
                     </button>
                   )}
                 </div>
@@ -422,12 +422,12 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
 
           {/* Quick Formula Breakdown Box */}
           {!calculationResult.error && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4 text-xs space-y-2">
-              <div className="font-bold text-gray-800 flex items-center gap-1.5">
-                <BookOpen className="h-3.5 w-3.5 text-emerald-600" />
-                <span>Formula Math Breakdown</span>
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 text-sm space-y-2.5">
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm sm:text-base">Formula Math Breakdown</span>
               </div>
-              <div className="font-mono text-[11px] bg-gray-50 p-2.5 rounded-lg text-gray-700 leading-relaxed border border-gray-100">
+              <div className="font-mono text-xs sm:text-sm bg-gray-50 p-3.5 rounded-xl text-gray-700 leading-relaxed border border-gray-100">
                 German Grade = 1 + 3 × ({maxScore} - {myScore}) / ({maxScore} - {minPassScore})
                 <br />
                 = 1 + 3 × ({calculationResult.stepByStep.numerator} / {calculationResult.stepByStep.denominator})
@@ -445,94 +445,94 @@ export default function BavarianCalculator({ onNavigateToDashboard }) {
       {/* Deep-Dive Guide Section: "What International Students MUST Know" */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
         <div className="space-y-1">
-          <div className="inline-flex items-center space-x-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700">
-            <Sparkles className="h-3.5 w-3.5" />
+          <div className="inline-flex items-center space-x-1.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-700">
+            <Sparkles className="h-4 w-4" />
             <span>Essential Guide for International Applicants</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
             Common Pitfalls & What to Check on Your Transcript
           </h2>
-          <p className="text-xs sm:text-sm text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600">
             Uni-Assist and German admission committees strictly follow university-specific examination regulations. Read this before submitting your VPD.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 pt-2">
           
           {/* Card 1 */}
-          <div className="p-4 rounded-xl border border-gray-200 bg-gray-50/50 space-y-2">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">
+          <div className="p-5 rounded-xl border border-gray-200 bg-gray-50/50 space-y-2.5">
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold shrink-0">
                 1
               </span>
-              <span>Never put 0 as Minimum Passing Score (Nmin)</span>
+              <span>Never put 0 as Nmin</span>
             </h3>
-            <p className="text-xs text-gray-600 leading-relaxed">
+            <p className="text-sm text-gray-600 leading-relaxed">
               A very frequent mistake is entering 0 as the minimum passing grade. In the Bavarian formula, <strong>N<sub>min</sub></strong> is the lowest score you could obtain and <em>still pass your degree</em>. Putting 0 will artificially drag your German grade down significantly!
             </p>
           </div>
 
           {/* Card 2 */}
-          <div className="p-4 rounded-xl border border-gray-200 bg-gray-50/50 space-y-2">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">
+          <div className="p-5 rounded-xl border border-gray-200 bg-gray-50/50 space-y-2.5">
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold shrink-0">
                 2
               </span>
-              <span>Check the Backside / Footnote of Your Transcript</span>
+              <span>Check Footnotes on Transcript</span>
             </h3>
-            <p className="text-xs text-gray-600 leading-relaxed">
+            <p className="text-sm text-gray-600 leading-relaxed">
               Indian universities (e.g., VTU, SPPU, Mumbai University, AKTU, Anna University) state the passing threshold on the reverse of the consolidated marksheet (e.g. <em>"Minimum grade for passing in any course is 'P' / 4.0 or 5.0"</em>). Uni-Assist uses whatever is explicitly printed.
             </p>
           </div>
 
           {/* Card 3 */}
-          <div className="p-4 rounded-xl border border-gray-200 bg-gray-50/50 space-y-2">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">
+          <div className="p-5 rounded-xl border border-gray-200 bg-gray-50/50 space-y-2.5">
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold shrink-0">
                 3
               </span>
-              <span>Understanding German Grade Ranges</span>
+              <span>German Grade Ranges</span>
             </h3>
-            <div className="text-xs text-gray-600 space-y-1">
+            <div className="text-sm text-gray-600 space-y-1.5">
               <div>• <strong>1.0 – 1.5:</strong> <em>Sehr Gut</em> (Very Good / Excellent)</div>
-              <div>• <strong>1.6 – 2.5:</strong> <em>Gut</em> (Good) — Safe zone for 90% of public programs</div>
-              <div>• <strong>2.6 – 3.0:</strong> <em>Befriedigend</em> (Satisfactory) — Look for NC-frei courses</div>
-              <div>• <strong>3.1 – 4.0:</strong> <em>Ausreichend</em> (Sufficient) — Lowest passing grade</div>
+              <div>• <strong>1.6 – 2.5:</strong> <em>Gut</em> (Good) — Safe for 90% programs</div>
+              <div>• <strong>2.6 – 3.0:</strong> <em>Befriedigend</em> (Satisfactory)</div>
+              <div>• <strong>3.1 – 4.0:</strong> <em>Ausreichend</em> (Sufficient)</div>
             </div>
           </div>
 
           {/* Card 4 */}
-          <div className="p-4 rounded-xl border border-gray-200 bg-gray-50/50 space-y-2">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">
+          <div className="p-5 rounded-xl border border-gray-200 bg-gray-50/50 space-y-2.5">
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold shrink-0">
                 4
               </span>
-              <span>German Truncation vs Mathematical Rounding</span>
+              <span>Truncation vs Rounding</span>
             </h3>
-            <p className="text-xs text-gray-600 leading-relaxed">
+            <p className="text-sm text-gray-600 leading-relaxed">
               Most German universities and Uni-Assist truncate or round to one decimal place in favor of the student (e.g., <strong>1.74 → 1.7</strong>). When entering your grade in portals or CVs, use one decimal place.
             </p>
           </div>
         </div>
 
         {/* Call to action banner */}
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 text-center sm:text-left">
-            <div className="text-sm font-bold text-emerald-950">
+            <div className="text-base sm:text-lg font-bold text-emerald-950">
               Ready to shortlist German universities with your grade?
             </div>
-            <div className="text-xs text-emerald-800">
-              Track deadlines, organize requirements, and follow the 6-phase relocation checklist in UniTracker.
+            <div className="text-sm text-emerald-800">
+              Track deadlines, organize requirements, and follow the 7-phase relocation checklist in UniTracker.
             </div>
           </div>
           {onNavigateToDashboard && (
             <button
               type="button"
               onClick={onNavigateToDashboard}
-              className="bg-black hover:bg-gray-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm shrink-0 flex items-center space-x-1.5 cursor-pointer"
+              className="bg-black hover:bg-gray-800 text-white text-sm font-bold px-5 py-3 rounded-xl transition-all shadow-sm shrink-0 flex items-center space-x-2 cursor-pointer"
             >
               <span>Go to Application Tracker</span>
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="h-4 w-4" />
             </button>
           )}
         </div>
