@@ -9,12 +9,21 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="apple-mobile-web-app-title" content="UniTracker" />
+    <meta
+      name="impact-site-verification"
+      value="6af1510f-d31b-4317-a63c-5b2cabc27f4b"
+    />
     <link rel="apple-touch-icon" href="/icon-192.png" />
 
     <!-- Primary SEO Title & Meta Tags -->
-    <title>UniTracker — Germany Master's Application Tracker & Admissions Roadmap</title>
+    <title>
+      UniTracker — Germany Master's Application Tracker & Admissions Roadmap
+    </title>
     <meta
       name="title"
       content="UniTracker — Germany Master's Application Tracker & Admissions Roadmap"
@@ -79,23 +88,26 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
-      if ('serviceWorker' in navigator) {
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      if ("serviceWorker" in navigator) {
+        if (
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1"
+        ) {
           // In local development, unregister service workers to avoid stale cached UI
           navigator.serviceWorker.getRegistrations().then((registrations) => {
             for (let registration of registrations) {
               registration.unregister();
             }
           });
-          if ('caches' in window) {
+          if ("caches" in window) {
             caches.keys().then((names) => {
               for (let name of names) caches.delete(name);
             });
           }
-        } else if (window.location.protocol === 'https:') {
-          window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').catch((err) => {
-              console.log('SW registration error:', err);
+        } else if (window.location.protocol === "https:") {
+          window.addEventListener("load", () => {
+            navigator.serviceWorker.register("/sw.js").catch((err) => {
+              console.log("SW registration error:", err);
             });
           });
         }
