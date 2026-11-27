@@ -38,6 +38,18 @@ const normalizePayload = (data, email) => {
   };
 };
 
+const resolveViewFromPath = (pathname = '') => {
+  if (pathname.includes('journey') || pathname.includes('roadmap')) return 'journey';
+  if (pathname.includes('calculator')) return 'calculator';
+  if (pathname.includes('student-deals') || pathname.includes('deals')) return 'deals';
+  return 'dashboard';
+};
+
+const getPhaseFromSearch = (search = '') => {
+  const phase = new URLSearchParams(search).get('phase');
+  return phase || null;
+};
+
 export default function App() {
   const { isSignedIn, getToken } = useAuth();
   const { user } = useUser();
@@ -52,16 +64,15 @@ export default function App() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [pendingImportData, setPendingImportData] = useState(null);
   const [celebrationApp, setCelebrationApp] = useState(null);
-  const [targetJourneyPhase, setTargetJourneyPhase] = useState("p1");
-  const [currentView, setCurrentView] = useState(() => {
-    if (window.location.pathname.includes('journey') || window.location.pathname.includes('roadmap')) return 'journey';
-    if (window.location.pathname.includes('calculator')) return 'calculator';
-    if (window.location.pathname.includes('student-deals') || window.location.pathname.includes('deals')) return 'deals';
-    return 'dashboard';
-  });
+  const [targetJourneyPhase, setTargetJourneyPhase] = useState(() =>
+    getPhaseFromSearch(window.location.search)
+  );
+  const [currentView, setCurrentView] = useState(() =>
+    resolveViewFromPath(window.location.pathname)
+  );
 
   const handleNavigate = (view, phaseId = null) => {
-    if (phaseId) setTargetJourneyPhase(phaseId);
+    setTargetJourneyPhase(view === 'journey' ? phaseId : null);
     setCurrentView(view);
     let targetUrl = '/';
     if (view === 'journey') {
@@ -81,15 +92,8 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      if (window.location.pathname.includes('journey') || window.location.pathname.includes('roadmap')) {
-        setCurrentView('journey');
-      } else if (window.location.pathname.includes('calculator')) {
-        setCurrentView('calculator');
-      } else if (window.location.pathname.includes('student-deals') || window.location.pathname.includes('deals')) {
-        setCurrentView('deals');
-      } else {
-        setCurrentView('dashboard');
-      }
+      setCurrentView(resolveViewFromPath(window.location.pathname));
+      setTargetJourneyPhase(getPhaseFromSearch(window.location.search));
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);

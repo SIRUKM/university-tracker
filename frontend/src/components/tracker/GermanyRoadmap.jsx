@@ -401,6 +401,12 @@ export default function GermanyRoadmap({
   const [isAddingCustom, setIsAddingCustom] = useState(false);
 
   useEffect(() => {
+    if (initialPhaseId && ROADMAP_PHASES.some((p) => p.id === initialPhaseId)) {
+      setActivePhaseId(initialPhaseId);
+    }
+  }, [initialPhaseId]);
+
+  useEffect(() => {
     try {
       localStorage.setItem(ROADMAP_STORAGE_KEY, JSON.stringify(completedStepIds));
     } catch {}
