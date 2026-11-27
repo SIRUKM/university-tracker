@@ -154,8 +154,7 @@ export const PARTNER_LINKS = {
       badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
       description: '100% verified student private apartments, single rooms, and studios near top German universities with zero scam risk and city registration (Anmeldung) support.',
       cta: 'Find Student Rooms',
-      // REPLACE with your approved affiliate tracking URL:
-      url: 'https://amberstudent.com/?utm_source=unitracker.live&utm_medium=affiliate',
+      url: 'https://amberstudent.com/flex/unitracker-live-1795517065',
       perk: 'Anmeldung (City Registration) eligible accommodation',
     },
     {
