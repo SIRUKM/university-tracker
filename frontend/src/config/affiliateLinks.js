@@ -26,8 +26,7 @@ export const PARTNER_LINKS = {
       badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200',
       description: 'Federal Foreign Office approved Blocked Account + TK Statutory Health Insurance + Free incoming travel cover + €150 cashback potential.',
       cta: 'Open Expatrio Blocked Account',
-      // REPLACE with your approved affiliate tracking URL:
-      url: 'https://www.expatrio.com/xp-value-package?utm_source=unitracker.live&utm_medium=affiliate',
+      url: 'https://www.expatrio.com?p=ukm4',
       perk: 'Free Travel Insurance & €150 Value Package Bonus',
     },
     {
@@ -37,20 +36,8 @@ export const PARTNER_LINKS = {
       badgeColor: 'bg-blue-50 text-blue-800 border-blue-200',
       description: 'Official German Blocked Account with instant digital visa blocking confirmation document + DAK/MAWISTA public health cover.',
       cta: 'Open Fintiba Plus',
-      // REPLACE with your approved affiliate tracking URL:
-      url: 'https://www.fintiba.com/fintiba-plus/?utm_source=unitracker.live&utm_medium=affiliate',
-      perk: 'Instant Blocking Confirmation for VFS Appointment',
-    },
-    {
-      id: 'coracle',
-      name: 'Coracle Prime',
-      tag: 'Lowest Setup Fee (€59)',
-      badgeColor: 'bg-purple-50 text-purple-800 border-purple-200',
-      description: 'Zero monthly account maintenance fee + free incoming travel insurance for enrollment and visa stamping.',
-      cta: 'Explore Coracle Prime',
-      // REPLACE with your approved affiliate tracking URL:
-      url: 'https://www.coracle.de/prime?utm_source=unitracker.live&utm_medium=affiliate',
-      perk: 'No Monthly Fees + €59 One-time Setup',
+      url: 'https://partner.fintiba.com/unitracker',
+      perk: 'Instant Blocking Confirmation • Code: unitracker',
     },
   ],
 

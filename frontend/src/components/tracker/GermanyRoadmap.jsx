@@ -38,7 +38,6 @@ import { PARTNER_LINKS } from "../../config/affiliateLinks";
 export const AFFILIATE_PARTNERS = {
   expatrio: PARTNER_LINKS.blockedAccounts[0],
   fintiba: PARTNER_LINKS.blockedAccounts[1],
-  coracle: PARTNER_LINKS.blockedAccounts[2],
 };
 
 export const ROADMAP_PHASES = [
@@ -189,7 +188,7 @@ export const ROADMAP_PHASES = [
         id: "p4-1",
         label: "Open official German Blocked Account (€11,904 = €992/month)",
         docs: "Passport copy, Admission Letter (Zulassungsbescheid)",
-        tip: "Expatrio, Fintiba, and Coracle are government-approved providers. Digital setup takes ~15 minutes.",
+        tip: "Expatrio and Fintiba are official, government-approved providers. Digital setup takes ~15 minutes.",
       },
       {
         id: "p4-2",
@@ -950,7 +949,7 @@ export default function GermanyRoadmap({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   {PARTNER_LINKS.blockedAccounts.map((p) => (
                     <div
                       key={p.id}

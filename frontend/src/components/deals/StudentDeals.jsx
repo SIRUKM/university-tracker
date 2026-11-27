@@ -140,7 +140,7 @@ export default function StudentDeals({ onNavigateToDashboard }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {PARTNER_LINKS.blockedAccounts.map((item) =>
               renderCard(
                 item,
